@@ -1,0 +1,71 @@
+[
+  {
+    "week": "1-9",
+    "phase": "Theory Block",
+    "activities": [
+      { "type": "Theory", "hoursPerDay": 5 },
+      { "type": "Lab", "hoursPerDay": 2 },
+      { "type": "Co-Curricular", "hoursPerDay": 1 }
+    ]
+  },
+  {
+    "week": "10",
+    "phase": "I Mid Term",
+    "activities": [
+      { "type": "Exam", "hoursPerDay": 4 },
+      { "type": "Lab", "hoursPerDay": 4 }
+    ]
+  },
+  {
+    "week": "11-16",
+    "phase": "Clinical Block",
+    "activities": [
+      { "type": "Clinical", "hoursPerDay": 8 }
+    ]
+  },
+  {
+    "week": "17",
+    "phase": "Festival Vacation",
+    "activities": [
+      { "type": "Vacation", "hoursPerDay": 0 }
+    ]
+  },
+  {
+    "week": "18",
+    "phase": "Clinical Block",
+    "activities": [
+      { "type": "Clinical", "hoursPerDay": 8 }
+    ]
+  },
+  {
+    "week": "19",
+    "phase": "II Mid Term",
+    "activities": [
+      { "type": "Exam", "hoursPerDay": 4 },
+      { "type": "Lab", "hoursPerDay": 4 }
+    ]
+  },
+  {
+    "week": "20-24",
+    "phase": "Theory Block",
+    "activities": [
+      { "type": "Theory", "hoursPerDay": 4 },
+      { "type": "Lab", "hoursPerDay": 2 },
+      { "type": "Co-Curricular", "hoursPerDay": 2 }
+    ]
+  },
+  {
+    "week": "25",
+    "phase": "Prep Leaves",
+    "activities": [
+      { "type": "Preparation", "hoursPerDay": 8 }
+    ]
+  },
+  {
+    "week": "26",
+    "phase": "University Exams",
+    "activities": [
+      { "type": "Final Exams", "hoursPerDay": 8 }
+    ]
+  }
+]

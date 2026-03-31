@@ -1,0 +1,95 @@
+[
+  {
+    "week": "1",
+    "phase": "Orientation",
+    "activities": [
+      { "type": "Orientation", "hoursPerDay": 8, "totalDays": 5, "totalHours": 40 }
+    ]
+  },
+  {
+    "week": "2-9",
+    "phase": "Theory Block",
+    "activities": [
+      { "type": "Theory", "hoursPerDay": 6, "totalDays": 40, "totalHours": 240 },
+      { "type": "Lab", "hoursPerDay": 1, "totalDays": 40, "totalHours": 40 },
+      { "type": "Co-Curricular", "hoursPerDay": 1, "totalDays": 40, "totalHours": 40 }
+    ]
+  },
+  {
+    "week": "10",
+    "phase": "I IA",
+    "activities": [
+      { "type": "Exam", "hoursPerDay": 4, "totalDays": 5, "totalHours": 20 },
+      { "type": "Lab", "hoursPerDay": 4, "totalDays": 5, "totalHours": 20 }
+    ]
+  },
+  {
+    "week": "11-13",
+    "phase": "Theory Block",
+    "activities": [
+      { "type": "Theory", "hoursPerDay": 6, "totalDays": 15, "totalHours": 90 },
+      { "type": "Lab", "hoursPerDay": 1, "totalDays": 15, "totalHours": 15 },
+      { "type": "CA", "hoursPerDay": 1, "totalDays": 15, "totalHours": 15 }
+    ]
+  },
+  {
+    "week": "14-16",
+    "phase": "Theory Block",
+    "activities": [
+      { "type": "Theory", "hoursPerDay": 7, "totalDays": 15, "totalHours": 105 },
+      { "type": "Lab", "hoursPerDay": 1, "totalDays": 15, "totalHours": 15 }
+    ]
+  },
+  {
+    "week": "17",
+    "phase": "Festival Vacation",
+    "activities": [
+      { "type": "Vacation", "hoursPerDay": 0, "totalDays": 5, "totalHours": 0 }
+    ]
+  },
+  {
+    "week": "18",
+    "phase": "Theory Block",
+    "activities": [
+      { "type": "Theory", "hoursPerDay": 7, "totalDays": 5, "totalHours": 35 },
+      { "type": "Lab", "hoursPerDay": 1, "totalDays": 5, "totalHours": 5 }
+    ]
+  },
+  {
+    "week": "19",
+    "phase": "II IA",
+    "activities": [
+      { "type": "Exam", "hoursPerDay": 5, "totalDays": 5, "totalHours": 25 },
+      { "type": "Lab", "hoursPerDay": 4, "totalDays": 5, "totalHours": 20 }
+    ]
+  },
+  {
+    "week": "20",
+    "phase": "Theory Block",
+    "activities": [
+      { "type": "Theory", "hoursPerDay": 7, "totalDays": 5, "totalHours": 35 },
+      { "type": "Co-Curricular", "hoursPerDay": 1, "totalDays": 5, "totalHours": 5 }
+    ]
+  },
+  {
+    "week": "21-24",
+    "phase": "Clinical Block",
+    "activities": [
+      { "type": "Clinical", "hoursPerDay": 8, "totalDays": 24, "totalHours": 192 }
+    ]
+  },
+  {
+    "week": "25",
+    "phase": "Preparation Leaves",
+    "activities": [
+      { "type": "Prep Leave", "hoursPerDay": 8, "totalDays": 5, "totalHours": 40 }
+    ]
+  },
+  {
+    "week": "26",
+    "phase": "University Exams",
+    "activities": [
+      { "type": "Exam", "hoursPerDay": 8, "totalDays": 5, "totalHours": 40 }
+    ]
+  }
+]

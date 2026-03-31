@@ -1,0 +1,9 @@
+[
+  {
+    "week": "1-26",
+    "phase": "Clinical Posting",
+    "activities": [
+      { "type": "Clinical", "hoursPerDay": 8 }
+    ]
+  }
+]

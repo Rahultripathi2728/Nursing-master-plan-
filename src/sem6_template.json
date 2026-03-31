@@ -1,0 +1,94 @@
+[
+  {
+    "week": "1-2",
+    "phase": "Theory Block",
+    "activities": [
+      { "type": "Theory", "hoursPerDay": 6 },
+      { "type": "Lab", "hoursPerDay": 1 },
+      { "type": "Co-Curricular", "hoursPerDay": 1 }
+    ]
+  },
+  {
+    "week": "3-9",
+    "phase": "Clinical Block",
+    "activities": [
+      { "type": "Clinical", "hoursPerDay": 8 }
+    ]
+  },
+  {
+    "week": "10",
+    "phase": "I Mid Term",
+    "activities": [
+      { "type": "Exam", "hoursPerDay": 4 },
+      { "type": "Lab", "hoursPerDay": 4 }
+    ]
+  },
+  {
+    "week": "11-13",
+    "phase": "Clinical Block",
+    "activities": [
+      { "type": "Clinical", "hoursPerDay": 8 }
+    ]
+  },
+  {
+    "week": "14-16",
+    "phase": "Theory Block",
+    "activities": [
+      { "type": "Theory", "hoursPerDay": 7 },
+      { "type": "Co-Curricular", "hoursPerDay": 1 }
+    ]
+  },
+  {
+    "week": "17",
+    "phase": "Festival Vacation",
+    "activities": [
+      { "type": "Vacation", "hoursPerDay": 0 }
+    ]
+  },
+  {
+    "week": "18",
+    "phase": "Theory Block",
+    "activities": [
+      { "type": "Theory", "hoursPerDay": 7 },
+      { "type": "Co-Curricular", "hoursPerDay": 1 }
+    ]
+  },
+  {
+    "week": "19",
+    "phase": "II Mid Term",
+    "activities": [
+      { "type": "Exam", "hoursPerDay": 5 },
+      { "type": "Lab", "hoursPerDay": 4 }
+    ]
+  },
+  {
+    "week": "20-22",
+    "phase": "Clinical Posting",
+    "activities": [
+      { "type": "Clinical", "hoursPerDay": 8 }
+    ]
+  },
+  {
+    "week": "23-24",
+    "phase": "Theory Block",
+    "activities": [
+      { "type": "Theory", "hoursPerDay": 7 },
+      { "type": "Lab", "hoursPerDay": 1 },
+      { "type": "Co-Curricular", "hoursPerDay": 1 }
+    ]
+  },
+  {
+    "week": "25",
+    "phase": "Prep Leaves",
+    "activities": [
+      { "type": "Preparation", "hoursPerDay": 8 }
+    ]
+  },
+  {
+    "week": "26",
+    "phase": "University Exams",
+    "activities": [
+      { "type": "Final Exams", "hoursPerDay": 8 }
+    ]
+  }
+]

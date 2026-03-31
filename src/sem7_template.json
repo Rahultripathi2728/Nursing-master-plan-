@@ -1,0 +1,90 @@
+[
+  {
+    "week": "1-5",
+    "phase": "Theory Block",
+    "activities": [
+      { "type": "Theory", "hoursPerDay": 7, "totalDays": 25, "totalHours": 175 },
+      { "type": "Lab", "hoursPerDay": 1, "totalDays": 25, "totalHours": 25 }
+    ]
+  },
+  {
+    "week": "6-9",
+    "phase": "Clinical Posting",
+    "activities": [
+      { "type": "Clinical", "hoursPerDay": 8, "totalDays": 24, "totalHours": 192 }
+    ]
+  },
+  {
+    "week": "10",
+    "phase": "I IA",
+    "activities": [
+      { "type": "Exam", "hoursPerDay": 4, "totalDays": 5, "totalHours": 20 },
+      { "type": "Lab", "hoursPerDay": 4, "totalDays": 5, "totalHours": 20 }
+    ]
+  },
+  {
+    "week": "11-14",
+    "phase": "Clinical Posting",
+    "activities": [
+      { "type": "Clinical", "hoursPerDay": 8, "totalDays": 24, "totalHours": 192 }
+    ]
+  },
+  {
+    "week": "15-16",
+    "phase": "Research Lab",
+    "activities": [
+      { "type": "Lab", "hoursPerDay": 8, "totalDays": 10, "totalHours": 80 }
+    ]
+  },
+  {
+    "week": "17",
+    "phase": "Festival Vacation",
+    "activities": [
+      { "type": "Vacation", "hoursPerDay": 0, "totalDays": 5, "totalHours": 0 }
+    ]
+  },
+  {
+    "week": "18",
+    "phase": "Theory Block",
+    "activities": [
+      { "type": "Theory", "hoursPerDay": 8, "totalDays": 5, "totalHours": 40 }
+    ]
+  },
+  {
+    "week": "19",
+    "phase": "II IA",
+    "activities": [
+      { "type": "Exam", "hoursPerDay": 5, "totalDays": 5, "totalHours": 25 },
+      { "type": "Lab", "hoursPerDay": 4, "totalDays": 5, "totalHours": 20 }
+    ]
+  },
+  {
+    "week": "20",
+    "phase": "Theory Block",
+    "activities": [
+      { "type": "Theory", "hoursPerDay": 6, "totalDays": 5, "totalHours": 30 },
+      { "type": "Lab", "hoursPerDay": 2, "totalDays": 5, "totalHours": 10 }
+    ]
+  },
+  {
+    "week": "21-24",
+    "phase": "Clinical Posting",
+    "activities": [
+      { "type": "Clinical", "hoursPerDay": 8, "totalDays": 24, "totalHours": 192 }
+    ]
+  },
+  {
+    "week": "25",
+    "phase": "Preparation Leaves",
+    "activities": [
+      { "type": "Prep Leave", "hoursPerDay": 8, "totalDays": 5, "totalHours": 40 }
+    ]
+  },
+  {
+    "week": "26",
+    "phase": "University Exams",
+    "activities": [
+      { "type": "Exam", "hoursPerDay": 8, "totalDays": 5, "totalHours": 40 }
+    ]
+  }
+]

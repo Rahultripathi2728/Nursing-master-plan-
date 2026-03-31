@@ -1,0 +1,78 @@
+[
+  {
+    "week": "1-4",
+    "phase": "Theory Block",
+    "activities": [
+      { "type": "Theory", "hoursPerDay": 6 },
+      { "type": "Lab", "hoursPerDay": 1 },
+      { "type": "Co-Curricular", "hoursPerDay": 1 }
+    ]
+  },
+  {
+    "week": "5-9",
+    "phase": "Theory Block",
+    "activities": [
+      { "type": "Theory", "hoursPerDay": 7 },
+      { "type": "Co-Curricular", "hoursPerDay": 1 }
+    ]
+  },
+  {
+    "week": "10",
+    "phase": "I Mid Term",
+    "activities": [
+      { "type": "Exam", "hoursPerDay": 4 },
+      { "type": "Lab", "hoursPerDay": 4 }
+    ]
+  },
+  {
+    "week": "11-12",
+    "phase": "Theory Block",
+    "activities": [
+      { "type": "Theory", "hoursPerDay": 7 },
+      { "type": "Co-Curricular", "hoursPerDay": 1 }
+    ]
+  },
+  {
+    "week": "13-16",
+    "phase": "Clinical Block",
+    "activities": [
+      { "type": "Clinical", "hoursPerDay": 8 }
+    ]
+  },
+  {
+    "week": "17",
+    "phase": "Festival Vacation",
+    "activities": [
+      { "type": "Vacation", "hoursPerDay": 0 }
+    ]
+  },
+  {
+    "week": "18-19",
+    "phase": "Clinical Block",
+    "activities": [
+      { "type": "Clinical", "hoursPerDay": 8 }
+    ]
+  },
+  {
+    "week": "20",
+    "phase": "II Mid Term",
+    "activities": [
+      { "type": "Exam", "hoursPerDay": 4 },
+      { "type": "Lab", "hoursPerDay": 4 }
+    ]
+  },
+  {
+    "week": "21-25",
+    "phase": "Clinical Block",
+    "activities": [
+      { "type": "Clinical", "hoursPerDay": 8 }
+    ]
+  },
+  {
+    "week": "26",
+    "phase": "University Exams",
+    "activities": [
+      { "type": "Final Exams", "hoursPerDay": 8 }
+    ]
+  }
+]
