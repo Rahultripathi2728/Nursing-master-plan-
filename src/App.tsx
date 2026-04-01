@@ -15,7 +15,12 @@ import {
   Cloud,
   GraduationCap,
   Settings,
-  CalendarDays
+  CalendarDays,
+  Plus,
+  Edit2,
+  Save,
+  X,
+  BookOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
@@ -27,7 +32,8 @@ import {
   ScheduleStats, 
   SlotType,
   Holiday,
-  CustomScheduleBlock
+  CustomScheduleBlock,
+  SemesterData
 } from './types';
 import { SEMESTER_DATABASE, SLOT_TIMINGS } from './constants';
 import { generateSchedule } from './scheduler';
@@ -180,6 +186,30 @@ export default function App() {
     return saved ? parseInt(saved) : 19;
   });
   const [isCalculated, setIsCalculated] = useState(false);
+  const [isManagingSubjects, setIsManagingSubjects] = useState(false);
+  const [collegeName, setCollegeName] = useState(() => {
+    return localStorage.getItem('collegeName') || 'Graphic Era College of Nursing';
+  });
+  const [campusName, setCampusName] = useState(() => {
+    return localStorage.getItem('campusName') || 'Graphic Era Hill University, Bhimtal Campus';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('collegeName', collegeName);
+  }, [collegeName]);
+
+  useEffect(() => {
+    localStorage.setItem('campusName', campusName);
+  }, [campusName]);
+
+  const [semesterData, setSemesterData] = useState<Record<number, SemesterData>>(() => {
+    const saved = localStorage.getItem('semesterData');
+    return saved ? JSON.parse(saved) : SEMESTER_DATABASE;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('semesterData', JSON.stringify(semesterData));
+  }, [semesterData]);
 
   const [holidays, setHolidays] = useState<Holiday[]>(() => {
     const saved = localStorage.getItem('holidays');
@@ -271,10 +301,10 @@ export default function App() {
       const hasHoli = holiDay && weekDates.includes(holiDay.date);
 
       if (hasDiwali) {
-        vacations.push({ date: weekDates[0], name: 'Diwali Vacation Week' });
+        vacations.push({ date: weekDates[0], name: 'Diwali Vacation' });
       }
       if (hasHoli) {
-        vacations.push({ date: weekDates[0], name: 'Holi Vacation Week' });
+        vacations.push({ date: weekDates[0], name: 'Holi Vacation' });
       }
     }
     return vacations;
@@ -291,13 +321,13 @@ export default function App() {
   const schedules = useMemo(() => {
     setScheduleError(null);
     try {
-      return semesters.map(sem => generateSchedule(sem, startDate, holidays, true, midTerm1Week, midTerm2Week));
+      return semesters.map(sem => generateSchedule(sem, startDate, holidays, true, midTerm1Week, midTerm2Week, semesterData[sem]));
     } catch (err: any) {
       console.error(err);
       setScheduleError(err.message || "Failed to generate schedule due to impossible constraints.");
       return [];
     }
-  }, [startDate, holidays, semesters, midTerm1Week, midTerm2Week]);
+  }, [startDate, holidays, semesters, midTerm1Week, midTerm2Week, semesterData]);
 
   const totalWorkingDays = useMemo(() => {
     if (!isCalculated || schedules.length === 0) return 0;
@@ -420,6 +450,205 @@ export default function App() {
 
   // --- Render Steps ---
 
+  const [editingSubject, setEditingSubject] = useState<{ sem: number, subjectId: string | null } | null>(null);
+  const [newSubject, setNewSubject] = useState({ name: '', code: '', theoryHours: 0, labHours: 0, clinicalHours: 0, faculty: '' });
+
+  const handleAddSubject = (sem: number) => {
+    if (!newSubject.name) return;
+    const id = newSubject.name.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now();
+    const updated = { ...semesterData };
+    updated[sem].subjects.push({ ...newSubject, id });
+    setSemesterData(updated);
+    setNewSubject({ name: '', code: '', theoryHours: 0, labHours: 0, clinicalHours: 0, faculty: '' });
+  };
+
+  const handleUpdateSubject = (sem: number, subjectId: string, updates: Partial<any>) => {
+    const updated = { ...semesterData };
+    const idx = updated[sem].subjects.findIndex(s => s.id === subjectId);
+    if (idx !== -1) {
+      updated[sem].subjects[idx] = { ...updated[sem].subjects[idx], ...updates };
+      setSemesterData(updated);
+    }
+  };
+
+  const handleDeleteSubject = (sem: number, subjectId: string) => {
+    const updated = { ...semesterData };
+    updated[sem].subjects = updated[sem].subjects.filter(s => s.id !== subjectId);
+    setSemesterData(updated);
+  };
+
+  const renderSubjectManagement = () => {
+    const sems = semesterType === 'odd' ? [1, 3, 5, 7] : [2, 4, 6, 8];
+    
+    return (
+      <motion.div 
+        initial={{ opacity: 0, x: 50 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="max-w-5xl mx-auto p-6 space-y-8"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">Manage Subjects</h2>
+            <p className="text-gray-500 font-medium mt-1">Customize hours and subjects for each semester.</p>
+          </div>
+          <button 
+            onClick={() => setIsManagingSubjects(false)}
+            className="flex items-center gap-2 text-gray-500 hover:text-gray-900 font-bold transition-all"
+          >
+            <ChevronLeft size={20} /> Back to Setup
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-8">
+          {sems.map(semNum => (
+            <div key={semNum} className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+              <div className="bg-indigo-600 px-8 py-4 flex items-center justify-between">
+                <h3 className="text-white font-bold text-lg">Semester {semNum}</h3>
+                <div className="text-indigo-100 text-sm font-medium">
+                  {semesterData[semNum].subjects.length} Subjects
+                </div>
+              </div>
+              
+              <div className="p-8">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        <th className="pb-4 font-bold text-gray-400 text-xs uppercase tracking-widest">Subject Name</th>
+                        <th className="pb-4 font-bold text-gray-400 text-xs uppercase tracking-widest text-center">Theory (Hrs)</th>
+                        <th className="pb-4 font-bold text-gray-400 text-xs uppercase tracking-widest text-center">Lab (Hrs)</th>
+                        <th className="pb-4 font-bold text-gray-400 text-xs uppercase tracking-widest text-center">Clinical (Hrs)</th>
+                        <th className="pb-4 font-bold text-gray-400 text-xs uppercase tracking-widest text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {semesterData[semNum].subjects.map(sub => (
+                        <tr key={sub.id} className="group hover:bg-gray-50/50 transition-colors">
+                          <td className="py-4">
+                            <div className="font-bold text-gray-900">{sub.name}</div>
+                            <div className="text-xs text-gray-400 font-medium">{sub.code}</div>
+                          </td>
+                          <td className="py-4 text-center">
+                            {editingSubject?.subjectId === sub.id ? (
+                              <input 
+                                type="number" 
+                                value={sub.theoryHours}
+                                onChange={(e) => handleUpdateSubject(semNum, sub.id, { theoryHours: parseInt(e.target.value) || 0 })}
+                                className="w-16 bg-white border border-gray-200 rounded px-2 py-1 text-center font-bold text-indigo-600 outline-none focus:border-indigo-500"
+                              />
+                            ) : (
+                              <span className="font-bold text-gray-700">{sub.theoryHours}</span>
+                            )}
+                          </td>
+                          <td className="py-4 text-center">
+                            {editingSubject?.subjectId === sub.id ? (
+                              <input 
+                                type="number" 
+                                value={sub.labHours}
+                                onChange={(e) => handleUpdateSubject(semNum, sub.id, { labHours: parseInt(e.target.value) || 0 })}
+                                className="w-16 bg-white border border-gray-200 rounded px-2 py-1 text-center font-bold text-indigo-600 outline-none focus:border-indigo-500"
+                              />
+                            ) : (
+                              <span className="font-bold text-gray-700">{sub.labHours}</span>
+                            )}
+                          </td>
+                          <td className="py-4 text-center">
+                            {editingSubject?.subjectId === sub.id ? (
+                              <input 
+                                type="number" 
+                                value={sub.clinicalHours}
+                                onChange={(e) => handleUpdateSubject(semNum, sub.id, { clinicalHours: parseInt(e.target.value) || 0 })}
+                                className="w-16 bg-white border border-gray-200 rounded px-2 py-1 text-center font-bold text-indigo-600 outline-none focus:border-indigo-500"
+                              />
+                            ) : (
+                              <span className="font-bold text-gray-700">{sub.clinicalHours}</span>
+                            )}
+                          </td>
+                          <td className="py-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {editingSubject?.subjectId === sub.id ? (
+                                <button 
+                                  onClick={() => setEditingSubject(null)}
+                                  className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all"
+                                >
+                                  <CheckCircle2 size={18} />
+                                </button>
+                              ) : (
+                                <button 
+                                  onClick={() => setEditingSubject({ sem: semNum, subjectId: sub.id })}
+                                  className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                >
+                                  <Edit2 size={18} />
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => handleDeleteSubject(semNum, sub.id)}
+                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {/* Add New Subject Row */}
+                      <tr className="bg-indigo-50/30">
+                        <td className="py-4">
+                          <input 
+                            type="text" 
+                            placeholder="New Subject Name"
+                            value={newSubject.name}
+                            onChange={(e) => setNewSubject({ ...newSubject, name: e.target.value })}
+                            className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-bold outline-none focus:border-indigo-500"
+                          />
+                        </td>
+                        <td className="py-4 text-center">
+                          <input 
+                            type="number" 
+                            placeholder="T"
+                            value={newSubject.theoryHours || ''}
+                            onChange={(e) => setNewSubject({ ...newSubject, theoryHours: parseInt(e.target.value) || 0 })}
+                            className="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-bold text-center outline-none focus:border-indigo-500"
+                          />
+                        </td>
+                        <td className="py-4 text-center">
+                          <input 
+                            type="number" 
+                            placeholder="L"
+                            value={newSubject.labHours || ''}
+                            onChange={(e) => setNewSubject({ ...newSubject, labHours: parseInt(e.target.value) || 0 })}
+                            className="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-bold text-center outline-none focus:border-indigo-500"
+                          />
+                        </td>
+                        <td className="py-4 text-center">
+                          <input 
+                            type="number" 
+                            placeholder="C"
+                            value={newSubject.clinicalHours || ''}
+                            onChange={(e) => setNewSubject({ ...newSubject, clinicalHours: parseInt(e.target.value) || 0 })}
+                            className="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-bold text-center outline-none focus:border-indigo-500"
+                          />
+                        </td>
+                        <td className="py-4 text-right">
+                          <button 
+                            onClick={() => handleAddSubject(semNum)}
+                            className="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition-all shadow-md"
+                          >
+                            <Plus size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+    );
+  };
+
   const renderSetup = () => {
     // Test comment
     return (
@@ -432,6 +661,29 @@ export default function App() {
         <div className="mb-10">
           <h2 className="text-3xl font-extrabold text-gray-900 mb-2 tracking-tight">Setup Academic Year</h2>
           <p className="text-gray-500 font-medium">Configure your semester parameters to generate the master plan.</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 mb-10">
+          <div className="space-y-3">
+            <label className="text-sm font-semibold text-gray-700">College Name</label>
+            <input 
+              type="text" 
+              value={collegeName}
+              onChange={(e) => setCollegeName(e.target.value)}
+              placeholder="e.g. Graphic Era College of Nursing"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 font-medium text-gray-900 focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition-all outline-none"
+            />
+          </div>
+          <div className="space-y-3">
+            <label className="text-sm font-semibold text-gray-700">Campus Name</label>
+            <input 
+              type="text" 
+              value={campusName}
+              onChange={(e) => setCampusName(e.target.value)}
+              placeholder="e.g. Graphic Era Hill University, Bhimtal Campus"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 font-medium text-gray-900 focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition-all outline-none"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
@@ -494,6 +746,24 @@ export default function App() {
               ))}
             </select>
           </div>
+        </div>
+
+        <div className="bg-indigo-50 rounded-2xl p-6 border border-indigo-100 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm">
+              <BookOpen size={24} />
+            </div>
+            <div>
+              <h4 className="font-bold text-gray-900">Subject Management</h4>
+              <p className="text-xs text-gray-500 font-medium">Add, edit or remove subjects and hours.</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setIsManagingSubjects(true)}
+            className="bg-white text-indigo-600 px-5 py-2 rounded-xl text-sm font-bold border border-indigo-200 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+          >
+            Manage Subjects
+          </button>
         </div>
 
         <div className="flex justify-end mt-8">
@@ -851,6 +1121,16 @@ export default function App() {
       };
     };
 
+    const getMasterPlanTitle = () => {
+      if (masterPlanFilter === 'all') {
+        return `Master Plan - B.Sc. Nursing ${semesterType.toUpperCase()} Semesters`;
+      } else {
+        const sem = parseInt(masterPlanFilter);
+        const suffix = sem === 1 ? 'st' : sem === 2 ? 'nd' : sem === 3 ? 'rd' : 'th';
+        return `Master Plan - B.Sc. Nursing ${sem}${suffix} Semester`;
+      }
+    };
+
     return (
       <motion.div 
         initial={{ opacity: 0 }}
@@ -861,9 +1141,9 @@ export default function App() {
           {/* Detailed Header */}
           <div className="mb-8 flex flex-col items-center">
             <div className="text-center space-y-1">
-              <h1 className="text-xl md:text-2xl font-bold uppercase tracking-tight">Graphic Era College of Nursing</h1>
-              <h2 className="text-lg md:text-xl font-bold text-gray-600">Graphic Era Hill University, Bhimtal Campus</h2>
-              <h3 className="text-base md:text-lg font-black text-[#ED7D31] uppercase tracking-widest">Master Plan - B.Sc. Nursing {semesterType.toUpperCase()} Semesters</h3>
+              <h1 className="text-xl md:text-2xl font-bold uppercase tracking-tight">{collegeName}</h1>
+              <h2 className="text-lg md:text-xl font-bold text-gray-600">{campusName}</h2>
+              <h3 className="text-base md:text-lg font-black text-[#ED7D31] uppercase tracking-widest">{getMasterPlanTitle()}</h3>
               <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Academic Session {new Date(startDate).getFullYear()} - {new Date(startDate).getFullYear() + 1}</p>
             </div>
           </div>
@@ -1064,14 +1344,14 @@ export default function App() {
                                 </>
                               ) : (
                                 <div className="h-full flex flex-col items-center justify-center p-1 overflow-hidden relative" style={{ backgroundColor: getPhaseColor(block.phase) }}>
-                                  {(phaseName.includes('PREP') || phaseName.includes('UNIVERSITY EXAM')) ? (
+                                  {(phaseName.includes('PREP') || phaseName.includes('UNIVERSITY EXAM') || phaseName.includes('VACATION')) ? (
                                     <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest whitespace-nowrap inline-block" style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}>
                                       {phaseName}
                                     </span>
                                   ) : (
                                     <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>{phaseName}</span>
                                   )}
-                                  {!(phaseName.includes('PREP') || phaseName.includes('EXAM')) && (
+                                  {!(phaseName.includes('PREP') || phaseName.includes('EXAM') || phaseName.includes('VACATION')) && (
                                     <span className={`${subFontSize} font-bold text-center leading-tight`}>
                                       ({renderMath(totalHrs, days)})
                                     </span>
@@ -1309,7 +1589,7 @@ export default function App() {
         />
         <main className="container mx-auto py-8">
           <AnimatePresence mode="wait">
-            {step === 1 && renderSetup()}
+            {step === 1 && (isManagingSubjects ? renderSubjectManagement() : renderSetup())}
             {step === 2 && renderMasterPlan()}
           </AnimatePresence>
         </main>

@@ -1,4 +1,4 @@
-import { Semester, Holiday, DaySchedule, SlotType, ScheduleStats } from './types';
+import { Semester, Holiday, DaySchedule, SlotType, ScheduleStats, SemesterData } from './types';
 import { SEMESTER_DATABASE } from './constants';
 import sem1Template from './sem1_template.json';
 import sem2Template from './sem2_template.json';
@@ -41,11 +41,12 @@ class TemplateAdapter {
     startDate: string, 
     holidays: Holiday[], 
     template: any,
+    semesterData: SemesterData,
     midTerm1Week?: number,
     midTerm2Week?: number
   ) {
     this.semester = semester;
-    this.semesterData = SEMESTER_DATABASE[semester];
+    this.semesterData = semesterData;
     // Parse as local date to match App.tsx
     this.startDate = new Date(startDate + 'T00:00:00');
     this.holidays = new Set(holidays.map(h => h.date));
@@ -345,7 +346,8 @@ export function generateSchedule(
   customHolidays: Holiday[] = [],
   clinicalMode: boolean = false,
   midTerm1Week?: number,
-  midTerm2Week?: number
+  midTerm2Week?: number,
+  semesterDataOverride?: SemesterData
 ): { blocks: MonthlyBlock[], finalStats: ScheduleStats[], bottlenecks: ScheduleStats[] } {
   let templateToUse = [];
   if (semester === Semester.SEM_1) templateToUse = sem1Template;
@@ -357,7 +359,8 @@ export function generateSchedule(
   else if (semester === Semester.SEM_7) templateToUse = sem7Template;
   else if (semester === Semester.SEM_8) templateToUse = sem8Template;
   
-  const adapter = new TemplateAdapter(semester, startDate, customHolidays, templateToUse, midTerm1Week, midTerm2Week);
+  const semesterData = semesterDataOverride || SEMESTER_DATABASE[semester];
+  const adapter = new TemplateAdapter(semester, startDate, customHolidays, templateToUse, semesterData, midTerm1Week, midTerm2Week);
   const { blocks, finalStats } = adapter.generate();
   
   return { 
