@@ -57,7 +57,7 @@
     "week": "19",
     "phase": "II Mid Term",
     "activities": [
-      { "type": "Exam", "hoursPerDay": 5 },
+      { "type": "Exam", "hoursPerDay": 4 },
       { "type": "Lab", "hoursPerDay": 4 }
     ]
   },
@@ -79,16 +79,16 @@
   },
   {
     "week": "25",
-    "phase": "Prep Leaves",
+    "phase": "Preparation Leave",
     "activities": [
-      { "type": "Preparation", "hoursPerDay": 8 }
+      { "type": "Prep Leave", "hoursPerDay": 8 }
     ]
   },
   {
     "week": "26",
     "phase": "University Exams",
     "activities": [
-      { "type": "Final Exams", "hoursPerDay": 8 }
+      { "type": "Exam", "hoursPerDay": 8 }
     ]
   }
 ]

@@ -62,17 +62,24 @@
     ]
   },
   {
-    "week": "21-25",
+    "week": "21-24",
     "phase": "Clinical Block",
     "activities": [
       { "type": "Clinical", "hoursPerDay": 8 }
     ]
   },
   {
+    "week": "25",
+    "phase": "Preparation Leave",
+    "activities": [
+      { "type": "Prep Leave", "hoursPerDay": 8 }
+    ]
+  },
+  {
     "week": "26",
     "phase": "University Exams",
     "activities": [
-      { "type": "Final Exams", "hoursPerDay": 8 }
+      { "type": "Exam", "hoursPerDay": 8 }
     ]
   }
 ]

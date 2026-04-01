@@ -17,7 +17,7 @@
   },
   {
     "week": "10",
-    "phase": "I IA",
+    "phase": "I Mid Term",
     "activities": [
       { "type": "Exam", "hoursPerDay": 4, "totalDays": 5, "totalHours": 20 },
       { "type": "Lab", "hoursPerDay": 4, "totalDays": 5, "totalHours": 20 }
@@ -57,9 +57,9 @@
   },
   {
     "week": "19",
-    "phase": "II IA",
+    "phase": "II Mid Term",
     "activities": [
-      { "type": "Exam", "hoursPerDay": 5, "totalDays": 5, "totalHours": 25 },
+      { "type": "Exam", "hoursPerDay": 4, "totalDays": 5, "totalHours": 20 },
       { "type": "Lab", "hoursPerDay": 4, "totalDays": 5, "totalHours": 20 }
     ]
   },
@@ -80,7 +80,7 @@
   },
   {
     "week": "25",
-    "phase": "Preparation Leaves",
+    "phase": "Preparation Leave",
     "activities": [
       { "type": "Prep Leave", "hoursPerDay": 8, "totalDays": 5, "totalHours": 40 }
     ]

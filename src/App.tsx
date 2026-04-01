@@ -358,6 +358,12 @@ export default function App() {
             clonedElement.style.overflow = 'visible';
             clonedElement.style.transform = 'none';
             
+            // Remove border, shadow, and rounded corners for a cleaner PDF
+            clonedElement.style.border = 'none';
+            clonedElement.style.boxShadow = 'none';
+            clonedElement.style.borderRadius = '0';
+            clonedElement.style.padding = '20px'; // Consistent padding
+            
             // Also ensure its parents in the clone don't clip it
             let parent = clonedElement.parentElement;
             while (parent) {
@@ -390,15 +396,6 @@ export default function App() {
 
       const imgData = canvas.toDataURL('image/png', 1.0);
       
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      
       const imgWidth = canvas.width;
       const imgHeight = canvas.height;
       
@@ -406,36 +403,14 @@ export default function App() {
         throw new Error('Canvas dimensions are invalid after capture');
       }
       
-      // Calculate ratio to fit width and height perfectly, accounting for margins
-      const marginX = 10;
-      const marginY = 10;
-      const maxPdfWidth = pdfWidth - (marginX * 2);
-      const maxPdfHeight = pdfHeight - (marginY * 2);
+      // Create PDF with exact canvas dimensions to eliminate empty space
+      const pdf = new jsPDF({
+        orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [imgWidth, imgHeight]
+      });
       
-      const imgRatio = imgWidth / imgHeight;
-      const pdfRatio = maxPdfWidth / maxPdfHeight;
-      
-      let finalWidth, finalHeight;
-      
-      if (imgRatio > pdfRatio) {
-        // Image is wider relative to its height than the PDF page
-        finalWidth = maxPdfWidth;
-        finalHeight = maxPdfWidth / imgRatio;
-      } else {
-        // Image is taller relative to its width than the PDF page
-        finalHeight = maxPdfHeight;
-        finalWidth = maxPdfHeight * imgRatio;
-      }
-      
-      // Center horizontally, align top vertically with margin
-      const x = marginX + Math.max(0, (maxPdfWidth - finalWidth) / 2);
-      const y = marginY;
-
-      if (isNaN(x) || isNaN(y) || isNaN(finalWidth) || isNaN(finalHeight)) {
-        throw new Error('Calculated PDF dimensions are invalid');
-      }
-
-      pdf.addImage(imgData, 'PNG', x, y, finalWidth, finalHeight, '', 'FAST');
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight, '', 'FAST');
       pdf.save(`Master_Plan_Sem_${semesterType}_${new Date().getFullYear()}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -1009,7 +984,7 @@ export default function App() {
                                   )}
                                   {block.stats.ca > 0 && (
                                     <div className="flex-[0.4] flex flex-col items-center justify-center bg-[#FFC000] p-1 overflow-hidden">
-                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>Co-Curricular</span>
+                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>CCA</span>
                                       <span className={`${subFontSize} font-bold text-center leading-tight`}>
                                         ({renderMath(block.stats.ca, days)})
                                       </span>
@@ -1027,7 +1002,9 @@ export default function App() {
                                 <>
                                   {block.stats.exam > 0 && (
                                     <div className="flex-1 flex flex-col items-center justify-center border-b border-black bg-[#FFFF00] p-1 overflow-hidden relative">
-                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>Sessional Exam</span>
+                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>
+                                        {block.phase === 'I IA' || block.phase === 'I Mid Term' ? 'I IA' : 'II IA'}
+                                      </span>
                                       <span className={`${subFontSize} font-bold text-center leading-tight`}>
                                         ({renderMath(block.stats.exam, days)})
                                       </span>
@@ -1043,7 +1020,7 @@ export default function App() {
                                   )}
                                   {block.stats.ca > 0 && (
                                     <div className="flex-1 flex flex-col items-center justify-center bg-[#FFC000] p-1 overflow-hidden">
-                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>Co-Curricular</span>
+                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>CCA</span>
                                       <span className={`${subFontSize} font-bold text-center leading-tight`}>
                                         ({renderMath(block.stats.ca, days)})
                                       </span>
@@ -1054,15 +1031,12 @@ export default function App() {
                                 <>
                                   {block.stats.orientation > 0 && (
                                     <div className="flex-1 flex flex-col items-center justify-center border-b border-black bg-[#A6A6A6] p-1 overflow-hidden relative">
-                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>Orientation</span>
-                                      <span className={`${subFontSize} font-bold text-center leading-tight`}>
-                                        ({renderMath(block.stats.orientation, days)})
-                                      </span>
+                                      <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest whitespace-nowrap inline-block" style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}>Orientation</span>
                                     </div>
                                   )}
                                   {block.stats.ca > 0 && (
                                     <div className="flex-1 flex flex-col items-center justify-center bg-[#FFC000] p-1 overflow-hidden">
-                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>Co-Curricular</span>
+                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>CCA</span>
                                       <span className={`${subFontSize} font-bold text-center leading-tight`}>
                                         ({renderMath(block.stats.ca, days)})
                                       </span>
@@ -1081,7 +1055,7 @@ export default function App() {
                                   )}
                                   {block.stats.ca > 0 && (
                                     <div className="flex-1 flex flex-col items-center justify-center bg-[#FFC000] p-1 overflow-hidden">
-                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>Co-Curricular</span>
+                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>CCA</span>
                                       <span className={`${subFontSize} font-bold text-center leading-tight`}>
                                         ({renderMath(block.stats.ca, days)})
                                       </span>
@@ -1090,8 +1064,14 @@ export default function App() {
                                 </>
                               ) : (
                                 <div className="h-full flex flex-col items-center justify-center p-1 overflow-hidden relative" style={{ backgroundColor: getPhaseColor(block.phase) }}>
-                                  <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>{phaseName}</span>
-                                  {!(phaseName.includes('PREPARATION') || phaseName.includes('EXAM')) && (
+                                  {(phaseName.includes('PREP') || phaseName.includes('UNIVERSITY EXAM')) ? (
+                                    <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest whitespace-nowrap inline-block" style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}>
+                                      {phaseName}
+                                    </span>
+                                  ) : (
+                                    <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>{phaseName}</span>
+                                  )}
+                                  {!(phaseName.includes('PREP') || phaseName.includes('EXAM')) && (
                                     <span className={`${subFontSize} font-bold text-center leading-tight`}>
                                       ({renderMath(totalHrs, days)})
                                     </span>
@@ -1165,7 +1145,7 @@ export default function App() {
                           })}
                           <tr className="bg-purple-50 font-bold">
                             <td className="border border-black border-t-0 border-b-0 p-1 md:p-1.5 bg-gray-50"></td>
-                            <td className="border border-black p-1 md:p-1.5 text-center uppercase align-middle">CO-CURRICULAR / ORIENTATION</td>
+                            <td className="border border-black p-1 md:p-1.5 text-center uppercase align-middle">CO-CURRICULAR / SELF STUDY</td>
                             <td className="border border-black p-1 md:p-1.5 text-center align-middle">-</td>
                             <td className="border border-black p-1 md:p-1.5 text-center align-middle">-</td>
                             <td className="border border-black p-1 md:p-1.5 text-center align-middle">-</td>
@@ -1173,7 +1153,7 @@ export default function App() {
                           </tr>
                           <tr className="bg-blue-50 font-bold">
                             <td className="border border-black border-t-0 p-1 md:p-1.5 bg-gray-50"></td>
-                            <td className="border border-black p-1 md:p-1.5 text-center uppercase align-middle">SEM {sem} TOTAL</td>
+                            <td className="border border-black p-1 md:p-1.5 text-center uppercase align-middle">TOTAL</td>
                             {(() => {
                               const stipTotal = semSubjects.reduce((acc, s) => ({
                                 t: acc.t + s.theoryHours,
@@ -1201,47 +1181,95 @@ export default function App() {
               </div>
 
               {/* Color Key (Right) */}
-              <div className="flex-[1.5] border-2 border-black p-2 bg-gray-50 rounded-lg min-w-[180px]">
-                <h4 className="text-[11px] font-black uppercase tracking-widest mb-2 border-b border-black pb-1">Key</h4>
-                <div className="grid grid-cols-1 gap-1.5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-[#FF99CC] border border-black shrink-0"></div>
-                    <span className="text-[10px] font-bold uppercase">Theory Block</span>
+              {(() => {
+                const usedKeys = new Set<string>();
+                filteredSemesters.forEach(sem => {
+                  const sIdx = semesters.indexOf(sem);
+                  const template = getMergedBlocks(sIdx);
+                  if (!template || template.length === 0) return;
+                  template.forEach(block => {
+                    const phaseName = block.phase.toUpperCase();
+                    if (phaseName.includes('THEORY')) usedKeys.add('Theory');
+                    if (phaseName.includes('CLINICAL')) usedKeys.add('Clinical');
+                    if (phaseName.includes('IA') || phaseName.includes('MID TERM')) usedKeys.add('Sessional');
+                    if (phaseName.includes('ORIENTATION')) usedKeys.add('Orientation');
+                    if (phaseName.includes('PREP')) usedKeys.add('Prep');
+                    if (phaseName.includes('UNIVERSITY EXAM')) usedKeys.add('University');
+                    if (phaseName.includes('VACATION')) usedKeys.add('Vacation');
+                    if (phaseName === 'LAB/CA') { usedKeys.add('Lab'); usedKeys.add('Co-Curricular'); }
+
+                    if (block.stats.theory > 0) usedKeys.add('Theory');
+                    if (block.stats.lab > 0) usedKeys.add('Lab');
+                    if (block.stats.ca > 0) usedKeys.add('Co-Curricular');
+                    if (block.stats.clinical > 0) usedKeys.add('Clinical');
+                    if (block.stats.exam > 0 && (phaseName.includes('IA') || phaseName.includes('MID TERM'))) usedKeys.add('Sessional');
+                    if (block.stats.orientation > 0) usedKeys.add('Orientation');
+                    if (block.stats.vacation > 0) usedKeys.add('Vacation');
+                  });
+                });
+
+                return (
+                  <div className="flex-[1.5] border-2 border-black p-2 bg-gray-50 rounded-lg min-w-[180px]">
+                    <h4 className="text-[11px] font-black uppercase tracking-widest mb-2 border-b border-black pb-1">Key</h4>
+                    <div className="grid grid-cols-1 gap-1.5">
+                      {usedKeys.has('Theory') && (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 bg-[#FF99CC] border border-black shrink-0"></div>
+                          <span className="text-[10px] font-bold uppercase">Theory Block</span>
+                        </div>
+                      )}
+                      {usedKeys.has('Lab') && (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 bg-[#92D050] border border-black shrink-0"></div>
+                          <span className="text-[10px] font-bold uppercase">Lab/Skill Lab</span>
+                        </div>
+                      )}
+                      {usedKeys.has('Co-Curricular') && (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 bg-[#FFC000] border border-black shrink-0"></div>
+                          <span className="text-[10px] font-bold uppercase">Co-Curricular</span>
+                        </div>
+                      )}
+                      {usedKeys.has('Clinical') && (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 bg-[#00B0F0] border border-black shrink-0"></div>
+                          <span className="text-[10px] font-bold uppercase">Clinical Block</span>
+                        </div>
+                      )}
+                      {usedKeys.has('Sessional') && (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 bg-[#FFFF00] border border-black shrink-0"></div>
+                          <span className="text-[10px] font-bold uppercase">Sessional Exam</span>
+                        </div>
+                      )}
+                      {usedKeys.has('University') && (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 bg-[#FF00FF] border border-black shrink-0"></div>
+                          <span className="text-[10px] font-bold uppercase">University Exam</span>
+                        </div>
+                      )}
+                      {usedKeys.has('Orientation') && (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 bg-[#A6A6A6] border border-black shrink-0"></div>
+                          <span className="text-[10px] font-bold uppercase">Orientation</span>
+                        </div>
+                      )}
+                      {usedKeys.has('Prep') && (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 bg-[#C6E0B4] border border-black shrink-0"></div>
+                          <span className="text-[10px] font-bold uppercase">Prep. Leave</span>
+                        </div>
+                      )}
+                      {usedKeys.has('Vacation') && (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 bg-[#FF0000] border border-black shrink-0"></div>
+                          <span className="text-[10px] font-bold uppercase">Vacation</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-[#92D050] border border-black shrink-0"></div>
-                    <span className="text-[10px] font-bold uppercase">Lab/Skill Lab</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-[#FFC000] border border-black shrink-0"></div>
-                    <span className="text-[10px] font-bold uppercase">Co-Curricular</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-[#00B0F0] border border-black shrink-0"></div>
-                    <span className="text-[10px] font-bold uppercase">Clinical Block</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-[#FFFF00] border border-black shrink-0"></div>
-                    <span className="text-[10px] font-bold uppercase">Sessional Exam</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-[#FF00FF] border border-black shrink-0"></div>
-                    <span className="text-[10px] font-bold uppercase">University Exam</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-[#A6A6A6] border border-black shrink-0"></div>
-                    <span className="text-[10px] font-bold uppercase">Orientation</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-[#C6E0B4] border border-black shrink-0"></div>
-                    <span className="text-[10px] font-bold uppercase">Prep. Leave</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-[#FF0000] border border-black shrink-0"></div>
-                    <span className="text-[10px] font-bold uppercase">Vacation</span>
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
             </div>
           </div>
 
