@@ -24,14 +24,14 @@
     ]
   },
   {
-    "week": "11-13",
+    "week": "11-12",
     "phase": "Clinical Block",
     "activities": [
       { "type": "Clinical", "hoursPerDay": 8 }
     ]
   },
   {
-    "week": "14-16",
+    "week": "13-16",
     "phase": "Theory Block",
     "activities": [
       { "type": "Theory", "hoursPerDay": 7 },
