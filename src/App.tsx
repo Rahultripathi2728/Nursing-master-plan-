@@ -324,50 +324,71 @@ export default function App() {
     try {
       // Ensure the element is visible and has dimensions
       if (element.offsetWidth === 0 || element.offsetHeight === 0) {
-        // Try to wait a bit or just warn
         console.warn('Element dimensions are zero, waiting for layout...');
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
       // Scroll to top to avoid capture issues with html2canvas
       const originalScrollY = window.scrollY;
+      const originalScrollX = window.scrollX;
       window.scrollTo(0, 0);
       
       const parentElement = element.parentElement;
       const originalScrollLeft = parentElement ? parentElement.scrollLeft : 0;
+      
+      // Temporarily remove overflow constraints from parent to ensure full capture
+      let originalParentOverflow = '';
       if (parentElement) {
         parentElement.scrollLeft = 0;
+        originalParentOverflow = parentElement.style.overflow;
+        parentElement.style.overflow = 'visible';
       }
 
       const canvas = await html2canvas(element, {
-        scale: 2,
+        scale: 2, // Higher scale for better resolution
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
-        width: element.scrollWidth,
-        height: element.scrollHeight,
         onclone: (clonedDoc) => {
           const clonedElement = clonedDoc.getElementById('master-plan-content');
           if (clonedElement) {
-            clonedElement.style.width = `${element.scrollWidth}px`; 
-            clonedElement.style.maxWidth = 'none';
+            // Let it expand naturally
+            clonedElement.style.height = 'auto';
+            clonedElement.style.maxHeight = 'none';
             clonedElement.style.overflow = 'visible';
+            clonedElement.style.transform = 'none';
+            
+            // Also ensure its parents in the clone don't clip it
+            let parent = clonedElement.parentElement;
+            while (parent) {
+               parent.style.overflow = 'visible';
+               parent.style.height = 'auto';
+               parent.style.maxHeight = 'none';
+               parent = parent.parentElement;
+            }
+            
+            // Ensure body and html don't clip
+            clonedDoc.body.style.overflow = 'visible';
+            clonedDoc.documentElement.style.overflow = 'visible';
+            clonedDoc.body.style.height = 'auto';
+            clonedDoc.documentElement.style.height = 'auto';
           }
-          // Hide elements with no-print class
+          // Remove elements with no-print class completely
           const noPrintElements = clonedDoc.getElementsByClassName('no-print');
-          for (let i = 0; i < noPrintElements.length; i++) {
-            (noPrintElements[i] as HTMLElement).style.display = 'none';
+          while(noPrintElements.length > 0) {
+            noPrintElements[0].parentNode?.removeChild(noPrintElements[0]);
           }
         }
       });
 
-      // Restore scroll
-      window.scrollTo(0, originalScrollY);
+      // Restore scroll and overflow
+      window.scrollTo(originalScrollX, originalScrollY);
       if (parentElement) {
         parentElement.scrollLeft = originalScrollLeft;
+        parentElement.style.overflow = originalParentOverflow;
       }
 
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/png', 1.0);
       
       const pdf = new jsPDF({
         orientation: 'landscape',
@@ -385,19 +406,36 @@ export default function App() {
         throw new Error('Canvas dimensions are invalid after capture');
       }
       
-      const ratio = Math.min(pdfWidth / (imgWidth / 2), pdfHeight / (imgHeight / 2));
+      // Calculate ratio to fit width and height perfectly, accounting for margins
+      const marginX = 10;
+      const marginY = 10;
+      const maxPdfWidth = pdfWidth - (marginX * 2);
+      const maxPdfHeight = pdfHeight - (marginY * 2);
       
-      const finalWidth = (imgWidth / 2) * ratio;
-      const finalHeight = (imgHeight / 2) * ratio;
+      const imgRatio = imgWidth / imgHeight;
+      const pdfRatio = maxPdfWidth / maxPdfHeight;
       
-      const x = Math.max(0, (pdfWidth - finalWidth) / 2);
-      const y = Math.max(0, (pdfHeight - finalHeight) / 2);
+      let finalWidth, finalHeight;
+      
+      if (imgRatio > pdfRatio) {
+        // Image is wider relative to its height than the PDF page
+        finalWidth = maxPdfWidth;
+        finalHeight = maxPdfWidth / imgRatio;
+      } else {
+        // Image is taller relative to its width than the PDF page
+        finalHeight = maxPdfHeight;
+        finalWidth = maxPdfHeight * imgRatio;
+      }
+      
+      // Center horizontally, align top vertically with margin
+      const x = marginX + Math.max(0, (maxPdfWidth - finalWidth) / 2);
+      const y = marginY;
 
       if (isNaN(x) || isNaN(y) || isNaN(finalWidth) || isNaN(finalHeight)) {
         throw new Error('Calculated PDF dimensions are invalid');
       }
 
-      pdf.addImage(imgData, 'PNG', x, y, finalWidth, finalHeight);
+      pdf.addImage(imgData, 'PNG', x, y, finalWidth, finalHeight, '', 'FAST');
       pdf.save(`Master_Plan_Sem_${semesterType}_${new Date().getFullYear()}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -907,9 +945,9 @@ export default function App() {
                   const mergedBlocks = getMergedBlocks(sIdx);
                   return (
                     <tr key={sem}>
-                      <td className="border border-black p-1 md:p-2 text-center font-bold text-xs md:text-sm bg-white relative h-48 md:h-72 w-8 md:w-12 align-middle">
+                      <td className="border border-black p-1 md:p-2 text-center font-bold text-xs md:text-sm bg-white relative h-48 md:h-72 w-8 md:w-12 align-middle overflow-hidden">
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest whitespace-nowrap block writing-vertical-rl" style={{ transform: 'rotate(180deg)' }}>
+                          <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest whitespace-nowrap inline-block" style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}>
                             B.Sc. Nursing {sem}th Sem
                           </span>
                         </div>
@@ -1259,7 +1297,6 @@ export default function App() {
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
-        .writing-vertical-rl { writing-mode: vertical-rl; }
       `}} />
       </div>
     </ErrorBoundary>
