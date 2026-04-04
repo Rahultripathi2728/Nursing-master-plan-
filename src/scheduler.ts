@@ -64,6 +64,11 @@ class TemplateAdapter {
   }
 
   private getAdjustedTemplate(): any[] {
+    // If the template is already a 26-week flat array, return it directly
+    if (Array.isArray(this.template) && this.template.length === 26 && this.template.every(w => w.week !== undefined)) {
+      return this.template;
+    }
+
     // 1. Flatten the template into 26 individual weeks
     const flatTemplate: any[] = [];
     this.template.forEach((p: any) => {
@@ -95,8 +100,8 @@ class TemplateAdapter {
         weekDates.push(this.formatDate(d));
       }
       const weekHolidays = this.fullHolidays.filter(h => weekDates.includes(h.date));
-      const diwali = weekHolidays.find(h => h.name.toLowerCase().includes('diwali'));
-      const holi = weekHolidays.find(h => h.name.toLowerCase().includes('holi'));
+      const diwali = weekHolidays.find(h => h.name && h.name.toLowerCase().includes('diwali'));
+      const holi = weekHolidays.find(h => h.name && h.name.toLowerCase().includes('holi'));
       if (diwali || holi) {
         actualFestivalWeek = w + 1;
         vacationName = diwali ? 'Diwali Vacation' : 'Holi Vacation';
@@ -340,15 +345,14 @@ class TemplateAdapter {
   }
 }
 
-export function generateSchedule(
+export function getDefaultTemplate(
   semester: Semester, 
   startDate: string, 
-  customHolidays: Holiday[] = [],
-  clinicalMode: boolean = false,
-  midTerm1Week?: number,
+  holidays: Holiday[], 
+  midTerm1Week?: number, 
   midTerm2Week?: number,
   semesterDataOverride?: SemesterData
-): { blocks: MonthlyBlock[], finalStats: ScheduleStats[], bottlenecks: ScheduleStats[] } {
+): any[] {
   let templateToUse = [];
   if (semester === Semester.SEM_1) templateToUse = sem1Template;
   else if (semester === Semester.SEM_2) templateToUse = sem2Template;
@@ -358,6 +362,35 @@ export function generateSchedule(
   else if (semester === Semester.SEM_6) templateToUse = sem6Template;
   else if (semester === Semester.SEM_7) templateToUse = sem7Template;
   else if (semester === Semester.SEM_8) templateToUse = sem8Template;
+
+  const semesterData = semesterDataOverride || SEMESTER_DATABASE[semester];
+  const adapter = new TemplateAdapter(semester, startDate, holidays, templateToUse, semesterData, midTerm1Week, midTerm2Week);
+  // @ts-ignore - accessing private method for initialization
+  return adapter.getAdjustedTemplate();
+}
+
+export function generateSchedule(
+  semester: Semester, 
+  startDate: string, 
+  customHolidays: Holiday[] = [],
+  clinicalMode: boolean = false,
+  midTerm1Week?: number,
+  midTerm2Week?: number,
+  semesterDataOverride?: SemesterData,
+  templateOverride?: any[]
+): { blocks: MonthlyBlock[], finalStats: ScheduleStats[], bottlenecks: ScheduleStats[] } {
+  let templateToUse = templateOverride;
+  
+  if (!templateToUse) {
+    if (semester === Semester.SEM_1) templateToUse = sem1Template;
+    else if (semester === Semester.SEM_2) templateToUse = sem2Template;
+    else if (semester === Semester.SEM_3) templateToUse = sem3Template;
+    else if (semester === Semester.SEM_4) templateToUse = sem4Template;
+    else if (semester === Semester.SEM_5) templateToUse = sem5Template;
+    else if (semester === Semester.SEM_6) templateToUse = sem6Template;
+    else if (semester === Semester.SEM_7) templateToUse = sem7Template;
+    else if (semester === Semester.SEM_8) templateToUse = sem8Template;
+  }
   
   const semesterData = semesterDataOverride || SEMESTER_DATABASE[semester];
   const adapter = new TemplateAdapter(semester, startDate, customHolidays, templateToUse, semesterData, midTerm1Week, midTerm2Week);

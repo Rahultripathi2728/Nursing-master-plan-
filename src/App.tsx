@@ -18,6 +18,7 @@ import {
   CalendarDays,
   Plus,
   Edit2,
+  Edit3,
   Save,
   X,
   BookOpen
@@ -36,136 +37,14 @@ import {
   SemesterData
 } from './types';
 import { SEMESTER_DATABASE, SLOT_TIMINGS } from './constants';
-import { generateSchedule } from './scheduler';
+import { generateSchedule, getDefaultTemplate } from './scheduler';
 import { generateHolidaysForPeriod, FIXED_HOLIDAYS_NAMES } from './holidayUtils';
 
 // --- Components ---
-
-class ErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: any) {
-    return { hasError: true, error };
-  }
-
-  render() {
-    if (this.state.hasError) {
-      let errorMessage = "An unexpected error occurred.";
-      if (this.state.error && this.state.error.message) {
-        errorMessage = this.state.error.message;
-      }
-
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-          <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-md w-full text-center border border-red-100">
-            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
-              <AlertCircle size={32} />
-            </div>
-            <h2 className="text-2xl font-black text-gray-900 mb-4 uppercase tracking-tight">Something went wrong</h2>
-            <p className="text-gray-500 mb-8 font-medium">{errorMessage}</p>
-            <button 
-              onClick={() => window.location.reload()}
-              className="w-full bg-[#141414] text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg"
-            >
-              Reload Application
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-// --- Main App ---
-
-const DashboardHeader = ({ 
-  step, 
-  semesterType, 
-  startDate,
-  masterPlanFilter,
-  setMasterPlanFilter,
-  handleExportPDF,
-  semesters
-}: { 
-  step: number, 
-  semesterType: string, 
-  startDate: string,
-  masterPlanFilter?: string,
-  setMasterPlanFilter?: (v: string) => void,
-  handleExportPDF?: () => void,
-  semesters?: number[]
-}) => {
-  const sessionYear = new Date(startDate).getFullYear();
-  
-  return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm no-print">
-      <div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        {/* Left Side: Logo & Title */}
-        <div className="flex items-center gap-3">
-          <div className="bg-[#141414] text-white p-2.5 rounded-xl shadow-md">
-            <GraduationCap size={24} />
-          </div>
-          <div>
-            <h1 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1">
-              GEHU MASTER PLAN
-            </h1>
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-              Curriculum Management System
-            </p>
-          </div>
-        </div>
-
-        {/* Right Side: Status / Info */}
-        <div className="flex items-center gap-3">
-          {step === 1 ? (
-            <div className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200">
-              <Settings size={14} className="text-gray-500" />
-              <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Setup Phase</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <div className="hidden md:flex items-center gap-2 bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100 text-[#ED7D31]">
-                <CalendarDays size={14} />
-                <span className="text-xs font-bold uppercase tracking-wider">
-                  {semesterType} Sem • {sessionYear}-{sessionYear + 1}
-                </span>
-              </div>
-              
-              {masterPlanFilter !== undefined && setMasterPlanFilter && semesters && (
-                <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-xl">
-                  <span className="text-[10px] font-black uppercase tracking-widest px-2 text-gray-500">Filter:</span>
-                  <select 
-                    value={masterPlanFilter}
-                    onChange={(e) => setMasterPlanFilter(e.target.value)}
-                    className="bg-white border-none rounded-lg px-3 py-2 text-xs font-bold outline-none shadow-sm cursor-pointer"
-                  >
-                    <option value="all">All Semesters</option>
-                    {semesters.map(s => (
-                      <option key={s} value={s.toString()}>Semester {s}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {handleExportPDF && (
-                <button 
-                  onClick={handleExportPDF}
-                  className="bg-[#141414] text-white px-4 py-2 rounded-xl hover:bg-black transition-all shadow-lg flex items-center gap-2 text-xs font-bold uppercase tracking-widest"
-                >
-                  <Download size={16} /> Export PDF
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </header>
-  );
-};
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { DashboardHeader } from './components/DashboardHeader';
+import { getPhaseColor, getSlotColor } from './utils/colors';
+import { exportToPDF } from './utils/pdfExport';
 
 export default function App() {
   const [step, setStep] = useState(1);
@@ -186,12 +65,133 @@ export default function App() {
     return saved ? parseInt(saved) : 19;
   });
   const [isCalculated, setIsCalculated] = useState(false);
+  const [semesterData, setSemesterData] = useState<Record<number, SemesterData>>(() => {
+    const saved = localStorage.getItem('semesterData');
+    return saved ? JSON.parse(saved) : SEMESTER_DATABASE;
+  });
   const [isManagingSubjects, setIsManagingSubjects] = useState(false);
+  const [isEditingMasterPlan, setIsEditingMasterPlan] = useState(false);
+  const [showSubjectDistribution, setShowSubjectDistribution] = useState(false);
+  const [showSubjectSummary, setShowSubjectSummary] = useState(false);
+  const [subjectHoursDraft, setSubjectHoursDraft] = useState<Record<number, any[]>>({});
+  const [initialSubjectHours, setInitialSubjectHours] = useState<Record<number, any[]>>({});
+  const [draftTemplates, setDraftTemplates] = useState<Record<number, any[]>>({});
+  const [undoStack, setUndoStack] = useState<any[]>([]);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [customTemplates, setCustomTemplates] = useState<Record<number, any[]>>(() => {
+    const saved = localStorage.getItem('customTemplates');
+    return saved ? JSON.parse(saved) : {};
+  });
+  const [selectedBlock, setSelectedBlock] = useState<{ semester: number, start: number, end: number } | null>(null);
+
+  const handleUpdateSubjectHours = (sem: number, subjectId: string, field: 'theoryHours' | 'labHours' | 'clinicalHours', value: number) => {
+    setSemesterData(prev => {
+      const newSemData = { ...prev };
+      const subjects = [...newSemData[sem].subjects];
+      const subIdx = subjects.findIndex(s => s.id === subjectId);
+      if (subIdx !== -1) {
+        subjects[subIdx] = { ...subjects[subIdx], [field]: value };
+        newSemData[sem] = { ...newSemData[sem], subjects };
+      }
+      return newSemData;
+    });
+  };
+
+  useEffect(() => {
+    if (isEditingMasterPlan) {
+      const initialDraft: Record<number, any[]> = {};
+      const initialRef: Record<number, any[]> = {};
+      semesters.forEach(sem => {
+        const stats = getSemesterStats(sem);
+        initialRef[sem] = JSON.parse(JSON.stringify(semesterData[sem].subjects));
+        initialDraft[sem] = semesterData[sem].subjects.map(sub => {
+          const alloc = stats.finalStats.find((s: any) => s.subjectId === sub.id);
+          return {
+            ...sub,
+            theoryHours: alloc ? alloc.scheduledTheory : sub.theoryHours,
+            labHours: alloc ? alloc.scheduledLab : sub.labHours,
+            clinicalHours: alloc ? alloc.scheduledClinical : sub.clinicalHours,
+          };
+        });
+      });
+      setSubjectHoursDraft(initialDraft);
+      setInitialSubjectHours(initialRef);
+    }
+  }, [isEditingMasterPlan]);
+
+  const syncDraftWithGrid = (sem: number) => {
+    const stats = getSemesterStats(sem);
+    setSubjectHoursDraft(prev => ({
+      ...prev,
+      [sem]: semesterData[sem].subjects.map(sub => {
+        const alloc = stats.finalStats.find((s: any) => s.subjectId === sub.id);
+        return {
+          ...sub,
+          theoryHours: alloc ? alloc.scheduledTheory : sub.theoryHours,
+          labHours: alloc ? alloc.scheduledLab : sub.labHours,
+          clinicalHours: alloc ? alloc.scheduledClinical : sub.clinicalHours,
+        };
+      })
+    }));
+  };
+
+  const handleUpdateDraftHours = (sem: number, subjectId: string, field: 'theoryHours' | 'labHours' | 'clinicalHours', value: number) => {
+    setSubjectHoursDraft(prev => {
+      const newDraft = { ...prev };
+      const subjects = [...(newDraft[sem] || [])];
+      const subIdx = subjects.findIndex(s => s.id === subjectId);
+      if (subIdx !== -1) {
+        subjects[subIdx] = { ...subjects[subIdx], [field]: value };
+        newDraft[sem] = subjects;
+      }
+      return newDraft;
+    });
+  };
+
+  const balanceDraftHours = (sem: number, field: 'theoryHours' | 'labHours' | 'clinicalHours') => {
+    const stats = getSemesterStats(sem);
+    if (!stats) return;
+    const pool = field === 'theoryHours' ? stats.totalTheory : field === 'labHours' ? stats.totalLab : stats.totalClinical;
+    
+    setSubjectHoursDraft(prev => {
+      const newDraft = { ...prev };
+      const subjects = [...(newDraft[sem] || [])];
+      const currentSum = subjects.reduce((s, sub) => s + sub[field], 0);
+      const diff = pool - currentSum;
+      
+      if (Math.abs(diff) < 0.1) return prev;
+
+      // Simple distribution: add the difference to the first subject that has hours, 
+      // or distribute if user wants "automatic division"
+      const perSubject = Math.floor(diff / subjects.length);
+      const remainder = diff % subjects.length;
+
+      const updatedSubjects = subjects.map((sub, idx) => ({
+        ...sub,
+        [field]: Math.max(0, sub[field] + perSubject + (idx === 0 ? remainder : 0))
+      }));
+
+      newDraft[sem] = updatedSubjects;
+      return newDraft;
+    });
+  };
+
+  const applySubjectHours = (sem: number) => {
+    setSemesterData(prev => ({
+      ...prev,
+      [sem]: {
+        ...prev[sem],
+        subjects: subjectHoursDraft[sem]
+      }
+    }));
+    alert(`Subject hours for Semester ${sem} updated successfully.`);
+  };
+
   const [collegeName, setCollegeName] = useState(() => {
-    return localStorage.getItem('collegeName') || 'Graphic Era College of Nursing';
+    return localStorage.getItem('collegeName') || 'College of Nursing';
   });
   const [campusName, setCampusName] = useState(() => {
-    return localStorage.getItem('campusName') || 'Graphic Era Hill University, Bhimtal Campus';
+    return localStorage.getItem('campusName') || 'University Campus';
   });
 
   useEffect(() => {
@@ -202,10 +202,9 @@ export default function App() {
     localStorage.setItem('campusName', campusName);
   }, [campusName]);
 
-  const [semesterData, setSemesterData] = useState<Record<number, SemesterData>>(() => {
-    const saved = localStorage.getItem('semesterData');
-    return saved ? JSON.parse(saved) : SEMESTER_DATABASE;
-  });
+  useEffect(() => {
+    localStorage.setItem('customTemplates', JSON.stringify(customTemplates));
+  }, [customTemplates]);
 
   useEffect(() => {
     localStorage.setItem('semesterData', JSON.stringify(semesterData));
@@ -321,13 +320,16 @@ export default function App() {
   const schedules = useMemo(() => {
     setScheduleError(null);
     try {
-      return semesters.map(sem => generateSchedule(sem, startDate, holidays, true, midTerm1Week, midTerm2Week, semesterData[sem]));
+      return semesters.map(sem => {
+        const template = isEditingMasterPlan ? draftTemplates[sem] : customTemplates[sem];
+        return generateSchedule(sem, startDate, holidays, true, midTerm1Week, midTerm2Week, semesterData[sem], template);
+      });
     } catch (err: any) {
       console.error(err);
       setScheduleError(err.message || "Failed to generate schedule due to impossible constraints.");
       return [];
     }
-  }, [startDate, holidays, semesters, midTerm1Week, midTerm2Week, semesterData]);
+  }, [startDate, holidays, semesters, midTerm1Week, midTerm2Week, semesterData, customTemplates, draftTemplates, isEditingMasterPlan]);
 
   const totalWorkingDays = useMemo(() => {
     if (!isCalculated || schedules.length === 0) return 0;
@@ -338,6 +340,137 @@ export default function App() {
     return totalWorkingDays * 8; // 8 hours per day as per user request
   }, [totalWorkingDays]);
 
+  const getWeekStats = (sIdx: number, wIdx: number) => {
+    const sem = semesters[sIdx];
+    
+    const wStart = new Date(startDate + 'T00:00:00');
+    wStart.setDate(wStart.getDate() + (wIdx * 7));
+    const wEnd = new Date(wStart);
+    wEnd.setDate(wEnd.getDate() + 6);
+
+    const schedule = schedules[sIdx];
+    if (!schedule) return { theory: 0, lab: 0, clinical: 0, ca: 0, exam: 0, orientation: 0, vacation: 0, workingDays: 0, dominantPhase: 'Theory Phase', weekHolidays: [] as string[] };
+
+    const stats = {
+      theory: 0, lab: 0, clinical: 0, ca: 0, exam: 0, orientation: 0, vacation: 0,
+      workingDays: 0, dominantPhase: 'Theory Phase', weekHolidays: [] as string[]
+    };
+
+    const phaseDays: Record<string, number> = {};
+
+    schedule.blocks.forEach(block => {
+      block.days.forEach(day => {
+        const dDate = new Date(day.date + 'T00:00:00');
+        if (dDate >= wStart && dDate <= wEnd) {
+          if (!day.isHoliday) {
+            stats.workingDays++;
+          } else if (day.holidayName && !['Sunday', 'Saturday', 'Theory Phase', 'Clinical Posting'].includes(day.holidayName)) {
+            if (!stats.weekHolidays.includes(day.holidayName)) {
+              stats.weekHolidays.push(day.holidayName);
+            }
+          }
+          const pName = day.holidayName || day.phaseName || 'Theory Phase';
+          if (pName !== 'Sunday' && pName !== 'Saturday') {
+            // Count vacation/holiday phases even if they are holidays
+            if (!day.isHoliday || pName.toLowerCase().includes('vacation') || pName.toLowerCase().includes('holi') || pName.toLowerCase().includes('diwali')) {
+              phaseDays[pName] = (phaseDays[pName] || 0) + 1;
+            }
+          }
+          day.slots.forEach(slot => {
+            const hrs = slot.durationMinutes / 60;
+            if (slot.type === SlotType.CLINICAL) stats.clinical += hrs;
+            else if (slot.type === SlotType.CA || slot.type === SlotType.CO_CURRICULAR) stats.ca += hrs;
+            else if (slot.type === SlotType.ORIENTATION) stats.orientation += hrs;
+            else if (slot.type === SlotType.LAB) stats.lab += hrs;
+            else if (slot.type === SlotType.THEORY) stats.theory += hrs;
+            else if (slot.type === SlotType.EXAM) stats.exam += hrs;
+            else if (slot.type === SlotType.HOLIDAY || slot.type === SlotType.PREP_LEAVE) stats.vacation += hrs;
+          });
+        }
+      });
+    });
+
+    let max = -1;
+    for (const [n, c] of Object.entries(phaseDays)) {
+      if (c > max) { max = c; stats.dominantPhase = n; }
+    }
+    return stats;
+  };
+
+  const getSemesterStats = (sem: number) => {
+    const semSubjects = semesterData[sem].subjects;
+    const sIdx = semesters.indexOf(sem);
+    
+    let totalTheory = 0, totalLab = 0, totalClinical = 0, totalCA = 0, totalOrientation = 0, totalExam = 0, totalVacation = 0;
+    
+    for (let w = 0; w < 26; w++) {
+      const stats = getWeekStats(sIdx, w);
+      totalTheory += stats.theory;
+      totalLab += stats.lab;
+      totalClinical += stats.clinical;
+      totalCA += stats.ca;
+      totalOrientation += stats.orientation;
+      totalExam += stats.exam;
+      totalVacation += stats.vacation;
+    }
+
+    let finalStats;
+    if (schedules[sIdx]) {
+      finalStats = schedules[sIdx].finalStats;
+    } else {
+      const totalStipulatedTheory = semSubjects.reduce((sum, sub) => sum + sub.theoryHours, 0);
+      const totalStipulatedLab = semSubjects.reduce((sum, sub) => sum + sub.labHours, 0);
+      const totalStipulatedClinical = semSubjects.reduce((sum, sub) => sum + sub.clinicalHours, 0);
+
+      let remainingTheory = totalTheory;
+      let remainingLab = totalLab;
+      let remainingClinical = totalClinical;
+
+      finalStats = semSubjects.map((sub, index) => {
+        const isLast = index === semSubjects.length - 1;
+
+        let theoryAllocated = totalStipulatedTheory > 0 ? Math.round((sub.theoryHours / totalStipulatedTheory) * totalTheory) : 0;
+        if (isLast && totalStipulatedTheory > 0) theoryAllocated = remainingTheory;
+        remainingTheory -= theoryAllocated;
+
+        let labAllocated = totalStipulatedLab > 0 ? Math.round((sub.labHours / totalStipulatedLab) * totalLab) : 0;
+        if (isLast && totalStipulatedLab > 0) labAllocated = remainingLab;
+        remainingLab -= labAllocated;
+
+        let clinicalAllocated = totalStipulatedClinical > 0 ? Math.round((sub.clinicalHours / totalStipulatedClinical) * totalClinical) : 0;
+        if (isLast && totalStipulatedClinical > 0) clinicalAllocated = remainingClinical;
+        remainingClinical -= clinicalAllocated;
+
+        return {
+          subjectId: sub.id,
+          subjectName: sub.name,
+          totalTheory: sub.theoryHours,
+          totalLab: sub.labHours,
+          totalClinical: sub.clinicalHours,
+          remainingTheory: Math.max(0, sub.theoryHours - theoryAllocated),
+          remainingLab: Math.max(0, sub.labHours - labAllocated),
+          remainingClinical: Math.max(0, sub.clinicalHours - clinicalAllocated),
+          scheduledTheory: theoryAllocated,
+          scheduledLab: labAllocated,
+          scheduledClinical: clinicalAllocated,
+          scheduledCA: 0,
+          scheduledOrientation: 0
+        };
+      });
+    }
+
+    return {
+      finalStats,
+      totalCA,
+      totalOrientation,
+      totalExam,
+      totalVacation,
+      totalTheory,
+      totalLab,
+      totalClinical
+    };
+  };
+
   // --- Handlers ---
 
   const addHoliday = () => {
@@ -347,105 +480,8 @@ export default function App() {
     }
   };
 
-  const handleExportPDF = async () => {
-    const element = document.getElementById('master-plan-content');
-    if (!element) return;
-
-    try {
-      // Ensure the element is visible and has dimensions
-      if (element.offsetWidth === 0 || element.offsetHeight === 0) {
-        console.warn('Element dimensions are zero, waiting for layout...');
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-
-      // Scroll to top to avoid capture issues with html2canvas
-      const originalScrollY = window.scrollY;
-      const originalScrollX = window.scrollX;
-      window.scrollTo(0, 0);
-      
-      const parentElement = element.parentElement;
-      const originalScrollLeft = parentElement ? parentElement.scrollLeft : 0;
-      
-      // Temporarily remove overflow constraints from parent to ensure full capture
-      let originalParentOverflow = '';
-      if (parentElement) {
-        parentElement.scrollLeft = 0;
-        originalParentOverflow = parentElement.style.overflow;
-        parentElement.style.overflow = 'visible';
-      }
-
-      const canvas = await html2canvas(element, {
-        scale: 2, // Higher scale for better resolution
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        onclone: (clonedDoc) => {
-          const clonedElement = clonedDoc.getElementById('master-plan-content');
-          if (clonedElement) {
-            // Let it expand naturally
-            clonedElement.style.height = 'auto';
-            clonedElement.style.maxHeight = 'none';
-            clonedElement.style.overflow = 'visible';
-            clonedElement.style.transform = 'none';
-            
-            // Remove border, shadow, and rounded corners for a cleaner PDF
-            clonedElement.style.border = 'none';
-            clonedElement.style.boxShadow = 'none';
-            clonedElement.style.borderRadius = '0';
-            clonedElement.style.padding = '20px'; // Consistent padding
-            
-            // Also ensure its parents in the clone don't clip it
-            let parent = clonedElement.parentElement;
-            while (parent) {
-               parent.style.overflow = 'visible';
-               parent.style.height = 'auto';
-               parent.style.maxHeight = 'none';
-               parent = parent.parentElement;
-            }
-            
-            // Ensure body and html don't clip
-            clonedDoc.body.style.overflow = 'visible';
-            clonedDoc.documentElement.style.overflow = 'visible';
-            clonedDoc.body.style.height = 'auto';
-            clonedDoc.documentElement.style.height = 'auto';
-          }
-          // Remove elements with no-print class completely
-          const noPrintElements = clonedDoc.getElementsByClassName('no-print');
-          while(noPrintElements.length > 0) {
-            noPrintElements[0].parentNode?.removeChild(noPrintElements[0]);
-          }
-        }
-      });
-
-      // Restore scroll and overflow
-      window.scrollTo(originalScrollX, originalScrollY);
-      if (parentElement) {
-        parentElement.scrollLeft = originalScrollLeft;
-        parentElement.style.overflow = originalParentOverflow;
-      }
-
-      const imgData = canvas.toDataURL('image/png', 1.0);
-      
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      
-      if (!imgWidth || !imgHeight) {
-        throw new Error('Canvas dimensions are invalid after capture');
-      }
-      
-      // Create PDF with exact canvas dimensions to eliminate empty space
-      const pdf = new jsPDF({
-        orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
-        unit: 'px',
-        format: [imgWidth, imgHeight]
-      });
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight, '', 'FAST');
-      pdf.save(`Master_Plan_Sem_${semesterType}_${new Date().getFullYear()}.pdf`);
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please try again or ensure the page is fully loaded.');
-    }
+  const handleExportPDF = () => {
+    exportToPDF('master-plan-content', collegeName, campusName, semesterType, masterPlanFilter);
   };
 
   // --- Render Steps ---
@@ -484,7 +520,7 @@ export default function App() {
       <motion.div 
         initial={{ opacity: 0, x: 50 }}
         animate={{ opacity: 1, x: 0 }}
-        className="max-w-5xl mx-auto p-6 space-y-8"
+        className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8"
       >
         <div className="flex items-center justify-between">
           <div>
@@ -502,9 +538,9 @@ export default function App() {
         <div className="grid grid-cols-1 gap-8">
           {sems.map(semNum => (
             <div key={semNum} className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
-              <div className="bg-indigo-600 px-8 py-4 flex items-center justify-between">
+              <div className="bg-[#141414] px-8 py-4 flex items-center justify-between">
                 <h3 className="text-white font-bold text-lg">Semester {semNum}</h3>
-                <div className="text-indigo-100 text-sm font-medium">
+                <div className="text-gray-400 text-sm font-medium">
                   {semesterData[semNum].subjects.length} Subjects
                 </div>
               </div>
@@ -534,7 +570,7 @@ export default function App() {
                                 type="number" 
                                 value={sub.theoryHours}
                                 onChange={(e) => handleUpdateSubject(semNum, sub.id, { theoryHours: parseInt(e.target.value) || 0 })}
-                                className="w-16 bg-white border border-gray-200 rounded px-2 py-1 text-center font-bold text-indigo-600 outline-none focus:border-indigo-500"
+                                className="w-16 bg-white border border-gray-200 rounded px-2 py-1 text-center font-bold text-gray-900 outline-none focus:border-gray-900"
                               />
                             ) : (
                               <span className="font-bold text-gray-700">{sub.theoryHours}</span>
@@ -546,7 +582,7 @@ export default function App() {
                                 type="number" 
                                 value={sub.labHours}
                                 onChange={(e) => handleUpdateSubject(semNum, sub.id, { labHours: parseInt(e.target.value) || 0 })}
-                                className="w-16 bg-white border border-gray-200 rounded px-2 py-1 text-center font-bold text-indigo-600 outline-none focus:border-indigo-500"
+                                className="w-16 bg-white border border-gray-200 rounded px-2 py-1 text-center font-bold text-gray-900 outline-none focus:border-gray-900"
                               />
                             ) : (
                               <span className="font-bold text-gray-700">{sub.labHours}</span>
@@ -558,7 +594,7 @@ export default function App() {
                                 type="number" 
                                 value={sub.clinicalHours}
                                 onChange={(e) => handleUpdateSubject(semNum, sub.id, { clinicalHours: parseInt(e.target.value) || 0 })}
-                                className="w-16 bg-white border border-gray-200 rounded px-2 py-1 text-center font-bold text-indigo-600 outline-none focus:border-indigo-500"
+                                className="w-16 bg-white border border-gray-200 rounded px-2 py-1 text-center font-bold text-gray-900 outline-none focus:border-gray-900"
                               />
                             ) : (
                               <span className="font-bold text-gray-700">{sub.clinicalHours}</span>
@@ -569,21 +605,21 @@ export default function App() {
                               {editingSubject?.subjectId === sub.id ? (
                                 <button 
                                   onClick={() => setEditingSubject(null)}
-                                  className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all"
+                                  className="p-2 text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
                                 >
                                   <CheckCircle2 size={18} />
                                 </button>
                               ) : (
                                 <button 
                                   onClick={() => setEditingSubject({ sem: semNum, subjectId: sub.id })}
-                                  className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                  className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
                                 >
                                   <Edit2 size={18} />
                                 </button>
                               )}
                               <button 
                                 onClick={() => handleDeleteSubject(semNum, sub.id)}
-                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
                               >
                                 <Trash2 size={18} />
                               </button>
@@ -592,14 +628,14 @@ export default function App() {
                         </tr>
                       ))}
                       {/* Add New Subject Row */}
-                      <tr className="bg-indigo-50/30">
+                      <tr className="bg-gray-50">
                         <td className="py-4">
                           <input 
                             type="text" 
                             placeholder="New Subject Name"
                             value={newSubject.name}
                             onChange={(e) => setNewSubject({ ...newSubject, name: e.target.value })}
-                            className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-bold outline-none focus:border-indigo-500"
+                            className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-bold outline-none focus:border-gray-900"
                           />
                         </td>
                         <td className="py-4 text-center">
@@ -608,7 +644,7 @@ export default function App() {
                             placeholder="T"
                             value={newSubject.theoryHours || ''}
                             onChange={(e) => setNewSubject({ ...newSubject, theoryHours: parseInt(e.target.value) || 0 })}
-                            className="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-bold text-center outline-none focus:border-indigo-500"
+                            className="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-bold text-center outline-none focus:border-gray-900"
                           />
                         </td>
                         <td className="py-4 text-center">
@@ -617,7 +653,7 @@ export default function App() {
                             placeholder="L"
                             value={newSubject.labHours || ''}
                             onChange={(e) => setNewSubject({ ...newSubject, labHours: parseInt(e.target.value) || 0 })}
-                            className="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-bold text-center outline-none focus:border-indigo-500"
+                            className="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-bold text-center outline-none focus:border-gray-900"
                           />
                         </td>
                         <td className="py-4 text-center">
@@ -626,13 +662,13 @@ export default function App() {
                             placeholder="C"
                             value={newSubject.clinicalHours || ''}
                             onChange={(e) => setNewSubject({ ...newSubject, clinicalHours: parseInt(e.target.value) || 0 })}
-                            className="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-bold text-center outline-none focus:border-indigo-500"
+                            className="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-bold text-center outline-none focus:border-gray-900"
                           />
                         </td>
                         <td className="py-4 text-right">
                           <button 
                             onClick={() => handleAddSubject(semNum)}
-                            className="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition-all shadow-md"
+                            className="bg-[#141414] text-white p-2 rounded-lg hover:bg-black transition-all shadow-md"
                           >
                             <Plus size={18} />
                           </button>
@@ -650,238 +686,1086 @@ export default function App() {
   };
 
   const renderSetup = () => {
-    // Test comment
     return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-3xl mx-auto p-6 space-y-6"
-    >
-      <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-10">
-        <div className="mb-10">
-          <h2 className="text-3xl font-extrabold text-gray-900 mb-2 tracking-tight">Setup Academic Year</h2>
-          <p className="text-gray-500 font-medium">Configure your semester parameters to generate the master plan.</p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 mb-10">
-          <div className="space-y-3">
-            <label className="text-sm font-semibold text-gray-700">College Name</label>
-            <input 
-              type="text" 
-              value={collegeName}
-              onChange={(e) => setCollegeName(e.target.value)}
-              placeholder="e.g. Graphic Era College of Nursing"
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 font-medium text-gray-900 focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition-all outline-none"
-            />
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6"
+      >
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-10">
+          <div className="mb-8 border-b border-gray-100 pb-6">
+            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-2 tracking-tight">Setup Academic Year</h2>
+            <p className="text-gray-500 font-medium text-sm sm:text-base">Configure your semester parameters to generate the master plan.</p>
           </div>
-          <div className="space-y-3">
-            <label className="text-sm font-semibold text-gray-700">Campus Name</label>
-            <input 
-              type="text" 
-              value={campusName}
-              onChange={(e) => setCampusName(e.target.value)}
-              placeholder="e.g. Graphic Era Hill University, Bhimtal Campus"
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 font-medium text-gray-900 focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition-all outline-none"
-            />
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-          <div className="space-y-3">
-            <label className="text-sm font-semibold text-gray-700">Semester Cycle</label>
-            <div className="flex p-1 bg-gray-100 rounded-lg">
-              <button 
-                onClick={() => { setSemesterType('odd'); setIsCalculated(false); }}
-                className={`flex-1 py-2 rounded-md text-sm font-bold transition-all ${semesterType === 'odd' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">College Name</label>
+              <input 
+                type="text" 
+                value={collegeName}
+                onChange={(e) => setCollegeName(e.target.value)}
+                placeholder="e.g. College of Nursing"
+                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-sm font-semibold text-gray-900 focus:border-black focus:ring-1 focus:ring-black transition-all outline-none shadow-sm"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Campus Name</label>
+              <input 
+                type="text" 
+                value={campusName}
+                onChange={(e) => setCampusName(e.target.value)}
+                placeholder="e.g. University Campus"
+                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-sm font-semibold text-gray-900 focus:border-black focus:ring-1 focus:ring-black transition-all outline-none shadow-sm"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Semester Cycle</label>
+              <div className="flex p-1 bg-gray-100 rounded-lg border border-gray-200">
+                <button 
+                  onClick={() => { setSemesterType('odd'); setIsCalculated(false); }}
+                  className={`flex-1 py-2.5 rounded-md text-sm font-bold transition-all ${semesterType === 'odd' ? 'bg-white text-black shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-900'}`}
+                >
+                  Odd
+                </button>
+                <button 
+                  onClick={() => { 
+                    setSemesterType('even'); 
+                    setStartDate('2026-07-13');
+                    setIsCalculated(false); 
+                  }}
+                  className={`flex-1 py-2.5 rounded-md text-sm font-bold transition-all ${semesterType === 'even' ? 'bg-white text-black shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-900'}`}
+                >
+                  Even
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Academic Start Date</label>
+              <input 
+                type="date" 
+                value={startDate}
+                onChange={(e) => { setStartDate(e.target.value); setIsCalculated(false); }}
+                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-sm font-semibold text-gray-900 focus:border-black focus:ring-1 focus:ring-black transition-all outline-none shadow-sm"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Mid-Term 1 Week (1-26)</label>
+              <select 
+                value={midTerm1Week}
+                onChange={(e) => { setMidTerm1Week(parseInt(e.target.value)); setIsCalculated(false); }}
+                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-sm font-semibold text-gray-900 focus:border-black focus:ring-1 focus:ring-black transition-all outline-none shadow-sm"
               >
-                Odd
-              </button>
-              <button 
-                onClick={() => { 
-                  setSemesterType('even'); 
-                  setStartDate('2026-07-13');
-                  setIsCalculated(false); 
-                }}
-                className={`flex-1 py-2 rounded-md text-sm font-bold transition-all ${semesterType === 'even' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                {Array.from({ length: 26 }, (_, i) => i + 1).map(w => (
+                  <option key={w} value={w}>Week {w}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Mid-Term 2 Week (1-26)</label>
+              <select 
+                value={midTerm2Week}
+                onChange={(e) => { setMidTerm2Week(parseInt(e.target.value)); setIsCalculated(false); }}
+                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-sm font-semibold text-gray-900 focus:border-black focus:ring-1 focus:ring-black transition-all outline-none shadow-sm"
               >
-                Even
+                {Array.from({ length: 26 }, (_, i) => i + 1).map(w => (
+                  <option key={w} value={w}>Week {w}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-black shadow-sm border border-gray-200">
+                <BookOpen size={20} />
+              </div>
+              <div>
+                <h4 className="font-bold text-gray-900">Subject Management</h4>
+                <p className="text-xs text-gray-500 font-medium mt-0.5">Add, edit or remove subjects and hours.</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setIsManagingSubjects(true)}
+              className="w-full sm:w-auto bg-white text-black px-5 py-2.5 rounded-lg text-sm font-bold border border-gray-300 hover:bg-gray-100 hover:border-gray-400 transition-all shadow-sm"
+            >
+              Manage Subjects
+            </button>
+          </div>
+
+          <div className="flex justify-end pt-6 border-t border-gray-100">
+            {!isCalculated ? (
+              <button 
+                onClick={() => setIsCalculated(true)}
+                className="w-full sm:w-auto bg-black text-white px-8 py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-all shadow-md hover:shadow-lg"
+              >
+                Next
               </button>
+            ) : (
+              <button 
+                onClick={() => setStep(2)}
+                className="w-full sm:w-auto bg-black text-white px-8 py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+              >
+                Generate Master Plan <ChevronLeft className="rotate-180" size={18} />
+              </button>
+            )}
+          </div>
+
+          {scheduleError && (
+            <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 flex items-start">
+              <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-bold text-sm">Scheduling Error</h3>
+                <p className="text-xs font-medium mt-1">{scheduleError}</p>
+              </div>
             </div>
-          </div>
-
-          <div className="space-y-3">
-            <label className="text-sm font-semibold text-gray-700">Academic Start Date</label>
-            <input 
-              type="date" 
-              value={startDate}
-              onChange={(e) => { setStartDate(e.target.value); setIsCalculated(false); }}
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 font-medium text-gray-900 focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition-all outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-          <div className="space-y-3">
-            <label className="text-sm font-semibold text-gray-700">Mid-Term 1 Week (1-26)</label>
-            <select 
-              value={midTerm1Week}
-              onChange={(e) => { setMidTerm1Week(parseInt(e.target.value)); setIsCalculated(false); }}
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 font-medium text-gray-900 focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition-all outline-none"
-            >
-              {Array.from({ length: 26 }, (_, i) => i + 1).map(w => (
-                <option key={w} value={w}>Week {w}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-3">
-            <label className="text-sm font-semibold text-gray-700">Mid-Term 2 Week (1-26)</label>
-            <select 
-              value={midTerm2Week}
-              onChange={(e) => { setMidTerm2Week(parseInt(e.target.value)); setIsCalculated(false); }}
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 font-medium text-gray-900 focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition-all outline-none"
-            >
-              {Array.from({ length: 26 }, (_, i) => i + 1).map(w => (
-                <option key={w} value={w}>Week {w}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="bg-indigo-50 rounded-2xl p-6 border border-indigo-100 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm">
-              <BookOpen size={24} />
-            </div>
-            <div>
-              <h4 className="font-bold text-gray-900">Subject Management</h4>
-              <p className="text-xs text-gray-500 font-medium">Add, edit or remove subjects and hours.</p>
-            </div>
-          </div>
-          <button 
-            onClick={() => setIsManagingSubjects(true)}
-            className="bg-white text-indigo-600 px-5 py-2 rounded-xl text-sm font-bold border border-indigo-200 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
-          >
-            Manage Subjects
-          </button>
-        </div>
-
-        <div className="flex justify-end mt-8">
-          {!isCalculated ? (
-            <button 
-              onClick={() => setIsCalculated(true)}
-              className="bg-indigo-600 text-white px-8 py-3.5 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg hover:shadow-indigo-200 hover:-translate-y-0.5"
-            >
-              Next
-            </button>
-          ) : (
-            <button 
-              onClick={() => setStep(2)}
-              className="bg-indigo-600 text-white px-8 py-3.5 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg hover:shadow-indigo-200 hover:-translate-y-0.5"
-            >
-              Generate Master Plan
-            </button>
           )}
         </div>
 
-        {scheduleError && (
-          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-start">
-            <svg className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div>
-              <h3 className="font-semibold">Scheduling Error</h3>
-              <p className="text-sm mt-1">{scheduleError}</p>
+        <AnimatePresence>
+          {isCalculated && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
+                {/* Left Column: Stats */}
+                <div className="lg:col-span-4 flex flex-col gap-6">
+                  <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-5 hover:border-gray-300 transition-colors">
+                    <div className="w-14 h-14 bg-gray-50 rounded-xl flex items-center justify-center text-black border border-gray-200 shadow-sm">
+                      <CalendarIcon size={24} />
+                    </div>
+                    <div>
+                      <div className="text-3xl font-black text-gray-900 tracking-tight">{totalWorkingDays}</div>
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mt-1">Total Working Days</div>
+                    </div>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-5 hover:border-gray-300 transition-colors">
+                    <div className="w-14 h-14 bg-gray-50 rounded-xl flex items-center justify-center text-black border border-gray-200 shadow-sm">
+                      <Clock size={24} />
+                    </div>
+                    <div>
+                      <div className="text-3xl font-black text-gray-900 tracking-tight">{totalWorkingHours}</div>
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mt-1">Total Working Hours</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column: Holidays */}
+                <div className="lg:col-span-8 bg-white rounded-2xl shadow-sm p-6 sm:p-8 border border-gray-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4 border-b border-gray-100 pb-5">
+                    <h3 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2">
+                      <CalendarDays size={20} className="text-gray-400" />
+                      Holiday & Vacation List
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      <input 
+                        type="date" 
+                        value={newHoliday.date}
+                        onChange={(e) => setNewHoliday({ ...newHoliday, date: e.target.value })}
+                        className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm font-semibold text-gray-900 outline-none focus:border-black focus:ring-1 focus:ring-black transition-all shadow-sm flex-1 sm:flex-none"
+                      />
+                      <input 
+                        type="text" 
+                        placeholder="Holiday Name"
+                        value={newHoliday.name}
+                        onChange={(e) => setNewHoliday({ ...newHoliday, name: e.target.value })}
+                        className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm font-semibold text-gray-900 outline-none focus:border-black focus:ring-1 focus:ring-black transition-all shadow-sm flex-1 sm:flex-none min-w-[140px]"
+                      />
+                      <button 
+                        onClick={addHoliday}
+                        className="bg-black text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-gray-800 transition-all shadow-sm w-full sm:w-auto"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[280px] overflow-y-auto custom-scrollbar pr-2">
+                    {holidays.map((h, i) => (
+                      <div key={i} className="flex items-center justify-between bg-gray-50 border border-gray-200 p-3.5 rounded-xl hover:bg-white hover:border-gray-300 hover:shadow-sm transition-all group">
+                        <div>
+                          <div className="font-bold text-gray-900 text-sm">{h.name}</div>
+                          <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mt-1">
+                            {new Date(h.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => setHolidays(holidays.filter((_, idx) => idx !== i))} 
+                          className="text-gray-400 hover:text-gray-900 p-2 rounded-lg hover:bg-gray-100 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-all"
+                          title="Remove Holiday"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                    {holidays.length === 0 && (
+                      <div className="col-span-1 sm:col-span-2 text-center py-8 text-gray-500 text-sm font-medium">
+                        No holidays added yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    );
+  };
+
+  const renderMasterPlanEditor = () => {
+    const filteredSems = masterPlanFilter === 'all' ? semesters : [parseInt(masterPlanFilter)];
+
+    // Calculate totals for the entire plan (all filtered semesters)
+    const planTotals = filteredSems.reduce((acc, sem) => {
+      const stats = getSemesterStats(sem);
+      if (!stats) return acc;
+      return {
+        theory: acc.theory + stats.totalTheory,
+        lab: acc.lab + stats.totalLab,
+        clinical: acc.clinical + stats.totalClinical,
+        requiredTheory: acc.requiredTheory + semesterData[sem].subjects.reduce((s, sub) => s + sub.theoryHours, 0),
+        requiredLab: acc.requiredLab + semesterData[sem].subjects.reduce((s, sub) => s + sub.labHours, 0),
+        requiredClinical: acc.requiredClinical + semesterData[sem].subjects.reduce((s, sub) => s + sub.clinicalHours, 0),
+      };
+    }, { theory: 0, lab: 0, clinical: 0, requiredTheory: 0, requiredLab: 0, requiredClinical: 0 });
+
+    const pushToUndo = () => {
+      setUndoStack(prev => [...prev, JSON.parse(JSON.stringify(draftTemplates))].slice(-20));
+    };
+
+    const handleUndo = () => {
+      if (undoStack.length === 0) return;
+      const prev = undoStack[undoStack.length - 1];
+      setDraftTemplates(prev);
+      setUndoStack(prevStack => prevStack.slice(0, -1));
+    };
+
+    const handleUpdateBlock = (sem: number, start: number, end: number, updates: any, oldStart?: number, oldEnd?: number) => {
+      pushToUndo();
+      const newTemplates = { ...draftTemplates };
+      const template = [...(newTemplates[sem] || [])];
+      
+      // Ensure template has 26 weeks
+      for (let i = 0; i < 26; i++) {
+        if (!template[i]) template[i] = { phase: 'Unscheduled', activities: [], week: i + 1 };
+      }
+
+      // If old range provided, clear it first to handle shrinking
+      if (oldStart !== undefined && oldEnd !== undefined) {
+        for (let i = oldStart; i <= oldEnd; i++) {
+          template[i] = { phase: 'Unscheduled', activities: [], week: i + 1 };
+        }
+      }
+      
+      // Apply new range
+      for (let i = start; i <= end; i++) {
+        template[i] = { ...template[i], ...updates, week: i + 1 };
+      }
+      
+      newTemplates[sem] = template;
+      setDraftTemplates(newTemplates);
+    };
+
+    const handleUpdateActivity = (sem: number, start: number, end: number, actIdx: number, updates: any) => {
+      pushToUndo();
+      const newTemplates = { ...draftTemplates };
+      const template = [...(newTemplates[sem] || [])];
+      for (let i = start; i <= end; i++) {
+        const activities = [...(template[i].activities || [])];
+        if (activities[actIdx]) {
+          activities[actIdx] = { ...activities[actIdx], ...updates };
+          const totalHrs = activities.reduce((sum, a) => sum + (a.hoursPerDay || 0), 0);
+          if (totalHrs > 8) {
+            const diff = totalHrs - 8;
+            activities[actIdx].hoursPerDay = Math.max(0, activities[actIdx].hoursPerDay - diff);
+          }
+          template[i] = { ...template[i], activities, week: i + 1 };
+        }
+      }
+      newTemplates[sem] = template;
+      setDraftTemplates(newTemplates);
+    };
+
+    const addActivity = (sem: number, start: number, end: number) => {
+      pushToUndo();
+      const newTemplates = { ...draftTemplates };
+      const template = [...(newTemplates[sem] || [])];
+      for (let i = start; i <= end; i++) {
+        const activities = [...(template[i].activities || [])];
+        const currentTotal = activities.reduce((sum, a) => sum + (a.hoursPerDay || 0), 0);
+        const remaining = Math.max(0, 8 - currentTotal);
+        if (remaining > 0) {
+          activities.push({ type: SlotType.THEORY, hoursPerDay: remaining });
+          template[i] = { ...template[i], activities, week: i + 1 };
+        }
+      }
+      newTemplates[sem] = template;
+      setDraftTemplates(newTemplates);
+    };
+
+    const removeActivity = (sem: number, start: number, end: number, actIdx: number) => {
+      pushToUndo();
+      const newTemplates = { ...draftTemplates };
+      const template = [...(newTemplates[sem] || [])];
+      for (let i = start; i <= end; i++) {
+        const activities = [...(template[i].activities || [])];
+        if (activities[actIdx]) {
+          activities.splice(actIdx, 1);
+          template[i] = { ...template[i], activities, week: i + 1 };
+        }
+      }
+      newTemplates[sem] = template;
+      setDraftTemplates(newTemplates);
+    };
+
+    const handleResetSemester = (sem: number) => {
+      pushToUndo();
+      const newTemplates = { ...draftTemplates };
+      newTemplates[sem] = getDefaultTemplate(sem, startDate, holidays, midTerm1Week, midTerm2Week, semesterData[sem]);
+      setDraftTemplates(newTemplates);
+      setSelectedBlock(null);
+    };
+
+    const handleSplitBlock = (sem: number, start: number, end: number) => {
+      if (start === end) return;
+      pushToUndo();
+      const mid = Math.floor((start + end) / 2);
+      const newTemplates = { ...draftTemplates };
+      const template = [...(newTemplates[sem] || [])];
+      // Make the second half slightly different to force a split
+      for (let i = mid + 1; i <= end; i++) {
+        template[i] = { ...template[i], phase: template[i].phase + " (Split)", week: i + 1 };
+      }
+      newTemplates[sem] = template;
+      setDraftTemplates(newTemplates);
+      setSelectedBlock({ semester: sem, start, end: mid });
+    };
+
+    const getBlocksForSemester = (sem: number) => {
+      const template = draftTemplates[sem] || [];
+      if (template.length === 0) return [];
+      
+      const blocks: { start: number, end: number, phase: string, activities: any[] }[] = [];
+      let currentBlock = { 
+        start: 0, 
+        end: 0, 
+        phase: template[0]?.phase || 'Unscheduled', 
+        activities: template[0]?.activities || []
+      };
+      
+      for (let i = 1; i < 26; i++) {
+        const week = template[i] || { phase: 'Unscheduled', activities: [], week: i + 1 };
+        const sameActivities = JSON.stringify(week.activities) === JSON.stringify(currentBlock.activities);
+        if (week.phase === currentBlock.phase && sameActivities) {
+          currentBlock.end = i;
+        } else {
+          blocks.push({ ...currentBlock });
+          currentBlock = { 
+            start: i, 
+            end: i, 
+            phase: week.phase, 
+            activities: week.activities 
+          };
+        }
+      }
+      blocks.push(currentBlock);
+      return blocks;
+    };
+
+    const monthHeaders: { name: string, weekCount: number }[] = [];
+    const weekStartDate = new Date(startDate + 'T00:00:00');
+    for (let w = 0; w < 26; w++) {
+      const d = new Date(weekStartDate);
+      d.setDate(d.getDate() + (w * 7) + 3);
+      const mName = d.toLocaleString('default', { month: 'long' });
+      if (monthHeaders.length > 0 && monthHeaders[monthHeaders.length - 1].name === mName) {
+        monthHeaders[monthHeaders.length - 1].weekCount++;
+      } else {
+        monthHeaders.push({ name: mName, weekCount: 1 });
+      }
+    }
+
+    const weeksArr = Array.from({ length: 26 }, (_, i) => i + 1);
+
+    const getWeekRange = (wIdx: number) => {
+      const start = new Date(startDate + 'T00:00:00');
+      start.setDate(start.getDate() + (wIdx * 7));
+      const end = new Date(start);
+      end.setDate(end.getDate() + 4); 
+      return { from: start.getDate(), to: end.getDate() };
+    };
+
+    const handleSaveEditor = () => {
+      // Check all filtered semesters for unscheduled weeks
+      for (const sem of filteredSems) {
+        const template = draftTemplates[sem] || [];
+        for (let i = 0; i < 26; i++) {
+          if (!template[i] || template[i].phase === 'Unscheduled') {
+            alert(`Cannot save: Week ${i + 1} in Semester ${sem} is unscheduled. Please fill all weeks before saving.`);
+            return;
+          }
+        }
+      }
+      setCustomTemplates(draftTemplates);
+      setIsEditingMasterPlan(false);
+      setSelectedBlock(null);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    return (
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="space-y-6"
+      >
+        {/* Header with Totals */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => {
+                if (JSON.stringify(draftTemplates) !== JSON.stringify(customTemplates)) {
+                  setShowExitConfirm(true);
+                } else {
+                  setIsEditingMasterPlan(false);
+                }
+              }}
+              className="p-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-all"
+              title="Go Back"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <div className="space-y-1">
+              <h2 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Master Plan Editor</h2>
+              <p className="text-gray-500 font-medium text-sm">Click on any block in the preview to edit its details.</p>
             </div>
           </div>
-        )}
-      </div>
-
-      <AnimatePresence>
-        {isCalculated && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="space-y-6 overflow-hidden"
-          >
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl flex items-center gap-6 hover:shadow-2xl transition-shadow">
-                <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-inner">
-                  <CalendarIcon size={32} />
-                </div>
-                <div>
-                  <div className="text-4xl font-extrabold text-gray-900 tracking-tight">{totalWorkingDays}</div>
-                  <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mt-1">Total Working Days</div>
-                </div>
-              </div>
-              <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl flex items-center gap-6 hover:shadow-2xl transition-shadow">
-                <div className="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600 shadow-inner">
-                  <Clock size={32} />
-                </div>
-                <div>
-                  <div className="text-4xl font-extrabold text-gray-900 tracking-tight">{totalWorkingHours}</div>
-                  <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mt-1">Total Working Hours</div>
-                </div>
+          
+          <div className="flex flex-wrap gap-4">
+            <div className="bg-gray-50 px-4 py-2 rounded-xl border border-gray-200">
+              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Theory Hours</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-lg font-black text-gray-900">{Math.round(planTotals.theory)}h</span>
+                <span className="text-xs font-bold text-gray-400">/ {planTotals.requiredTheory}h</span>
               </div>
             </div>
-            
-            {/* Holiday Management */}
-            <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
-              <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-                <h3 className="text-xl font-extrabold text-gray-900 tracking-tight flex items-center gap-3">
-                  <div className="p-2 bg-red-50 text-red-500 rounded-xl">
-                    <AlertCircle size={20} />
+            <div className="bg-gray-50 px-4 py-2 rounded-xl border border-gray-200">
+              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Lab Hours</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-lg font-black text-gray-900">{Math.round(planTotals.lab)}h</span>
+                <span className="text-xs font-bold text-gray-400">/ {planTotals.requiredLab}h</span>
+              </div>
+            </div>
+            <div className="bg-gray-50 px-4 py-2 rounded-xl border border-gray-200">
+              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Clinical Hours</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-lg font-black text-gray-900">{Math.round(planTotals.clinical)}h</span>
+                <span className="text-xs font-bold text-gray-400">/ {planTotals.requiredClinical}h</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Left: Preview Grid - Matching Master View Style */}
+          <div className="flex-[3] bg-white p-4 md:p-8 rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+            <div className="min-w-[1000px] border-2 border-black overflow-hidden rounded-lg">
+              <table className="w-full border-collapse table-fixed text-[10px]">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="border border-black p-1 md:p-2 text-xs font-bold w-16 md:w-24 text-center align-middle">Month</th>
+                    {monthHeaders.map((m, i) => (
+                      <th key={i} colSpan={m.weekCount} className="border border-black p-1 text-xs font-bold text-center align-middle">
+                        {m.name}
+                      </th>
+                    ))}
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <th className="border border-black p-1 text-[10px] md:text-xs font-bold text-center align-middle">Weeks</th>
+                    {weeksArr.map(w => (
+                      <th key={w} className="border border-black p-0.5 md:p-1 text-[10px] md:text-xs font-bold w-6 md:w-10 text-center align-middle">{w}</th>
+                    ))}
+                  </tr>
+                  {masterPlanFilter !== 'all' && (
+                    <>
+                      <tr className="bg-gray-50">
+                        <th className="border border-black p-1 text-[10px] font-bold text-center align-middle">From</th>
+                        {weeksArr.map((_, i) => (
+                          <th key={i} className="border border-black p-0.5 text-[8px] md:text-[9px] font-bold text-center align-middle">
+                            {getWeekRange(i).from}
+                          </th>
+                        ))}
+                      </tr>
+                      <tr className="bg-gray-50">
+                        <th className="border border-black p-1 text-[10px] font-bold text-center align-middle">To</th>
+                        {weeksArr.map((_, i) => (
+                          <th key={i} className="border border-black p-0.5 text-[8px] md:text-[9px] font-bold text-center align-middle">
+                            {getWeekRange(i).to}
+                          </th>
+                        ))}
+                      </tr>
+                    </>
+                  )}
+                </thead>
+                <tbody>
+                  {filteredSems.map(sem => (
+                    <tr key={sem}>
+                      <td className="border border-black p-1 md:p-2 text-center font-bold text-xs md:text-sm bg-white relative h-48 md:h-72 w-8 md:w-12 align-middle overflow-hidden">
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest whitespace-nowrap inline-block" style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}>
+                            B.Sc. Nursing {sem}th Sem
+                          </span>
+                        </div>
+                      </td>
+                      {getBlocksForSemester(sem).map((block, bIdx) => {
+                        const isSelected = selectedBlock?.semester === sem && selectedBlock?.start === block.start && selectedBlock?.end === block.end;
+                        const isFixedPhase = (phase: string) => {
+                          const p = phase.toUpperCase();
+                          return p.includes('UNIVERSITY EXAM') || p.includes('PREP') || p.includes('VACATION') || p.includes('HOLI') || p.includes('DIWALI');
+                        };
+                        const isFixed = isFixedPhase(block.phase);
+                        const isUnscheduled = block.phase === 'Unscheduled';
+
+                        return (
+                          <td 
+                            key={bIdx} 
+                            colSpan={block.end - block.start + 1}
+                            onClick={() => {
+                              if (!isFixed) {
+                                setSelectedBlock({ semester: sem, start: block.start, end: block.end });
+                              }
+                            }}
+                            className={`border border-black p-0 h-48 md:h-72 transition-all relative group ${isFixed ? 'bg-gray-100/50 cursor-not-allowed' : 'cursor-pointer hover:bg-gray-50'} ${isSelected ? 'z-20' : ''}`}
+                            style={{ backgroundColor: isFixed ? '#f3f4f6' : (isUnscheduled ? '#FFFFFF' : 'transparent') }}
+                          >
+                            {isSelected && (
+                              <>
+                                <div className="absolute inset-0 border-4 border-[#ED7D31] z-30 pointer-events-none shadow-[0_0_15px_rgba(237,125,49,0.5)]" />
+                                <div className="absolute -top-2 -right-2 bg-[#ED7D31] text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-40 uppercase tracking-widest">
+                                  Selected
+                                </div>
+                              </>
+                            )}
+                            <div className="flex flex-col h-full w-full">
+                              {isFixed || isUnscheduled ? (
+                                <div className="h-full flex flex-col items-center justify-center p-1 overflow-hidden relative" style={{ backgroundColor: isFixed ? '#f3f4f6' : '#FFFFFF' }}>
+                                  <span className={`text-[8px] md:text-[10px] font-bold uppercase tracking-widest whitespace-nowrap inline-block ${isUnscheduled ? 'text-gray-200' : 'text-gray-500'}`} style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}>
+                                    {isUnscheduled ? 'Empty Slot' : block.phase.toUpperCase()}
+                                  </span>
+                                </div>
+                              ) : (
+                                <>
+                                  {block.activities?.map((act: any, aIdx: number) => (
+                                    <div 
+                                      key={aIdx} 
+                                      className={`flex flex-col items-center justify-center overflow-hidden relative ${aIdx < block.activities.length - 1 ? 'border-b border-black' : ''}`}
+                                      style={{ 
+                                        backgroundColor: getSlotColor(act.type),
+                                        height: `${(act.hoursPerDay / 8) * 100}%` 
+                                      }}
+                                    >
+                                      <span className="text-[7px] md:text-[9px] font-black uppercase text-center leading-tight px-1">
+                                        {act.type === SlotType.THEORY ? 'Theory Block' : 
+                                         act.type === SlotType.LAB ? 'Lab/Skill Lab' :
+                                         act.type === SlotType.CLINICAL ? 'Clinical Block' :
+                                         act.type === SlotType.CO_CURRICULAR ? 'CCA' :
+                                         act.type === SlotType.EXAM ? 'IA/Exam' :
+                                         act.type === SlotType.ORIENTATION ? 'Orientation' : act.type}
+                                      </span>
+                                      <span className="text-[6px] md:text-[8px] font-bold text-center leading-tight">
+                                        ({act.hoursPerDay}h/d)
+                                      </span>
+                                    </div>
+                                  ))}
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Right: Edit Panel */}
+          <div className="flex-1 space-y-6">
+            {selectedBlock ? (
+              <motion.div 
+                key={`${selectedBlock.semester}-${selectedBlock.start}-${selectedBlock.end}`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100 sticky top-24"
+              >
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h3 className="text-lg font-black text-gray-900 uppercase">Edit Block</h3>
+                    <p className="text-xs font-bold text-gray-900 uppercase tracking-widest">
+                      Semester {selectedBlock.semester} • Week {selectedBlock.start + 1} - {selectedBlock.end + 1}
+                    </p>
                   </div>
-                  Holiday & Vacation List
-                </h3>
-                <div className="flex flex-wrap gap-3">
-                  <input 
-                    type="date" 
-                    value={newHoliday.date}
-                    onChange={(e) => setNewHoliday({ ...newHoliday, date: e.target.value })}
-                    className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-                  />
-                  <input 
-                    type="text" 
-                    placeholder="Holiday Name"
-                    value={newHoliday.name}
-                    onChange={(e) => setNewHoliday({ ...newHoliday, name: e.target.value })}
-                    className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all min-w-[200px]"
-                  />
-                  <button 
-                    onClick={addHoliday}
-                    className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
-                  >
-                    Add
+                  <button onClick={() => setSelectedBlock(null)} className="text-gray-400 hover:text-gray-600">
+                    <X size={20} />
                   </button>
                 </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {holidays.map((h, i) => (
-                  <div key={i} className="flex items-center justify-between bg-gray-50 border border-gray-100 p-4 rounded-2xl hover:bg-white hover:shadow-md transition-all group">
-                    <div>
-                      <div className="font-bold text-gray-900">{h.name}</div>
-                      <div className="text-xs text-gray-500 font-semibold mt-0.5">{new Date(h.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</div>
-                    </div>
-                    <button 
-                      onClick={() => setHolidays(holidays.filter((_, idx) => idx !== i))} 
-                      className="text-gray-400 hover:text-red-500 p-2 rounded-full hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
-                      title="Remove Holiday"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+
+                <div className="space-y-6">
+                  {/* Phase Name */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Phase Name</label>
+                    <input 
+                      type="text"
+                      value={draftTemplates[selectedBlock.semester][selectedBlock.start].phase}
+                      onChange={(e) => handleUpdateBlock(selectedBlock.semester, selectedBlock.start, selectedBlock.end, { phase: e.target.value })}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold focus:border-gray-900 outline-none transition-all"
+                    />
                   </div>
-                ))}
+
+                  {/* Range Adjustment */}
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Adjust Block Range</label>
+                      {selectedBlock.start !== selectedBlock.end && (
+                        <button 
+                          onClick={() => handleSplitBlock(selectedBlock.semester, selectedBlock.start, selectedBlock.end)}
+                          className="text-gray-900 hover:text-black text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
+                        >
+                          <Menu size={12} className="rotate-90" /> Split Block
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Start Week</label>
+                        <select 
+                          value={selectedBlock.start + 1}
+                          onChange={(e) => {
+                            const newStart = parseInt(e.target.value) - 1;
+                            handleUpdateBlock(selectedBlock.semester, newStart, selectedBlock.end, { 
+                              phase: draftTemplates[selectedBlock.semester][selectedBlock.start].phase,
+                              activities: draftTemplates[selectedBlock.semester][selectedBlock.start].activities
+                            }, selectedBlock.start, selectedBlock.end);
+                            setSelectedBlock({ ...selectedBlock, start: newStart });
+                          }}
+                          className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-black text-gray-900 outline-none focus:border-gray-900 cursor-pointer"
+                        >
+                          {Array.from({ length: selectedBlock.end + 1 }, (_, i) => (
+                            <option key={i} value={i + 1}>Week {i + 1}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">End Week</label>
+                        <select 
+                          value={selectedBlock.end + 1}
+                          onChange={(e) => {
+                            const newEnd = parseInt(e.target.value) - 1;
+                            handleUpdateBlock(selectedBlock.semester, selectedBlock.start, newEnd, { 
+                              phase: draftTemplates[selectedBlock.semester][selectedBlock.start].phase,
+                              activities: draftTemplates[selectedBlock.semester][selectedBlock.start].activities
+                            }, selectedBlock.start, selectedBlock.end);
+                            setSelectedBlock({ ...selectedBlock, end: newEnd });
+                          }}
+                          className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-black text-gray-900 outline-none focus:border-gray-900 cursor-pointer"
+                        >
+                          {Array.from({ length: 26 - selectedBlock.start }, (_, i) => (
+                            <option key={i} value={selectedBlock.start + i + 1}>Week {selectedBlock.start + i + 1}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <p className="text-[9px] text-gray-400 font-medium italic leading-tight">
+                      Adjusting the end week will overwrite subsequent weeks with this block's content. To split a block, use the "Split" button.
+                    </p>
+                  </div>
+
+                  {/* Activities */}
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Daily Schedule (Max 8h)</label>
+                      <button 
+                        onClick={() => addActivity(selectedBlock.semester, selectedBlock.start, selectedBlock.end)}
+                        className="text-gray-900 hover:text-black text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
+                      >
+                        <Plus size={12} /> Add Activity
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {draftTemplates[selectedBlock.semester][selectedBlock.start].activities?.map((act: any, aIdx: number) => (
+                        <div key={aIdx} className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100 group">
+                          <select 
+                            value={act.type}
+                            onChange={(e) => handleUpdateActivity(selectedBlock.semester, selectedBlock.start, selectedBlock.end, aIdx, { type: e.target.value })}
+                            className="flex-1 bg-transparent border-none text-xs font-bold outline-none cursor-pointer"
+                          >
+                            <option value={SlotType.THEORY}>Theory</option>
+                            <option value={SlotType.LAB}>Lab/Skill</option>
+                            <option value={SlotType.CLINICAL}>Clinical</option>
+                            <option value={SlotType.CO_CURRICULAR}>CCA</option>
+                            <option value={SlotType.EXAM}>Exam</option>
+                            <option value={SlotType.ORIENTATION}>Orientation</option>
+                          </select>
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="number"
+                              min="0"
+                              max="8"
+                              value={act.hoursPerDay}
+                              onChange={(e) => handleUpdateActivity(selectedBlock.semester, selectedBlock.start, selectedBlock.end, aIdx, { hoursPerDay: parseFloat(e.target.value) || 0 })}
+                              className="w-12 bg-white border border-gray-200 rounded-lg px-2 py-1 text-center text-xs font-bold text-gray-900"
+                            />
+                            <span className="text-[10px] font-bold text-gray-400">h</span>
+                          </div>
+                          <button 
+                            onClick={() => removeActivity(selectedBlock.semester, selectedBlock.start, selectedBlock.end, aIdx)}
+                            className="text-gray-300 hover:text-gray-900 transition-colors"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+
+                      {/* Remaining Hours indicator */}
+                      <div className="flex justify-between items-center px-2">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Scheduled</span>
+                        <span className={`text-xs font-black ${draftTemplates[selectedBlock.semester][selectedBlock.start].activities?.reduce((s: number, a: any) => s + a.hoursPerDay, 0) === 8 ? 'text-gray-900' : 'text-gray-500'}`}>
+                          {draftTemplates[selectedBlock.semester][selectedBlock.start].activities?.reduce((s: number, a: any) => s + a.hoursPerDay, 0)} / 8 hours
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-6 border-t border-gray-100 mt-6">
+                  <button 
+                    onClick={() => handleResetSemester(selectedBlock.semester)}
+                    className="w-full bg-gray-100 text-gray-900 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-gray-900 hover:text-white transition-all flex items-center justify-center gap-2"
+                  >
+                    <Trash2 size={14} /> Reset Semester to Default
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <div className="bg-white p-12 rounded-2xl shadow-sm border border-gray-100 text-center space-y-4 sticky top-24">
+                <div className="w-16 h-16 bg-gray-50 text-gray-900 rounded-full flex items-center justify-center mx-auto">
+                  <Edit3 size={32} />
+                </div>
+                <h3 className="text-lg font-black text-gray-900 uppercase">Select a Block</h3>
+                <p className="text-gray-500 font-medium text-sm">Click on any week in the grid to start editing.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Subject Summary Toggle - Moved Lower */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <button 
+            onClick={() => setShowSubjectSummary(!showSubjectSummary)}
+            className="w-full px-8 py-4 flex items-center justify-between hover:bg-gray-50 transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gray-100 text-gray-900 rounded-xl">
+                <BarChart3 size={20} />
+              </div>
+              <div className="text-left">
+                <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">Subject Hours Distribution & Balancing</h3>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Distribute the scheduled hours pool among subjects</p>
               </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
-};
+            <motion.div animate={{ rotate: showSubjectSummary ? 180 : 0 }}>
+              <ChevronLeft className="-rotate-90" size={20} />
+            </motion.div>
+          </button>
+
+          <AnimatePresence>
+            {showSubjectSummary && (
+              <motion.div 
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden border-t border-gray-100"
+              >
+                <div className="p-6 space-y-8">
+                  {filteredSems.map(sem => {
+                    const stats = getSemesterStats(sem);
+                    if (!stats) return null;
+                    
+                    const draftSubjects = subjectHoursDraft[sem] || [];
+                    const sumDraftTheory = draftSubjects.reduce((s, sub) => s + sub.theoryHours, 0);
+                    const sumDraftLab = draftSubjects.reduce((s, sub) => s + sub.labHours, 0);
+                    const sumDraftClinical = draftSubjects.reduce((s, sub) => s + sub.clinicalHours, 0);
+
+                    const diffTheory = stats.totalTheory - sumDraftTheory;
+                    const diffLab = stats.totalLab - sumDraftLab;
+                    const diffClinical = stats.totalClinical - sumDraftClinical;
+
+                    return (
+                      <div key={sem} className="space-y-6 bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-4">
+                          <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest">Semester {sem} Distribution</h4>
+                          
+                            <div className="flex flex-wrap gap-3">
+                              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold border ${Math.abs(diffTheory) < 0.1 ? 'bg-gray-50 border-gray-200 text-gray-700' : 'bg-gray-100 border-gray-300 text-gray-900'}`}>
+                                <span>Theory: {stats.totalTheory}h | Rem: {diffTheory}h</span>
+                                {Math.abs(diffTheory) > 0.1 && (
+                                  <button 
+                                    onClick={() => balanceDraftHours(sem, 'theoryHours')}
+                                    className="ml-1 bg-gray-200 hover:bg-gray-300 px-1.5 py-0.5 rounded text-[8px] transition-colors"
+                                  >
+                                    Balance
+                                  </button>
+                                )}
+                              </div>
+                              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold border ${Math.abs(diffLab) < 0.1 ? 'bg-gray-50 border-gray-200 text-gray-700' : 'bg-gray-100 border-gray-300 text-gray-900'}`}>
+                                <span>Lab: {stats.totalLab}h | Rem: {diffLab}h</span>
+                                {Math.abs(diffLab) > 0.1 && (
+                                  <button 
+                                    onClick={() => balanceDraftHours(sem, 'labHours')}
+                                    className="ml-1 bg-gray-200 hover:bg-gray-300 px-1.5 py-0.5 rounded text-[8px] transition-colors"
+                                  >
+                                    Balance
+                                  </button>
+                                )}
+                              </div>
+                              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold border ${Math.abs(diffClinical) < 0.1 ? 'bg-gray-50 border-gray-200 text-gray-700' : 'bg-gray-100 border-gray-300 text-gray-900'}`}>
+                                <span>Clinical: {stats.totalClinical}h | Rem: {diffClinical}h</span>
+                                {Math.abs(diffClinical) > 0.1 && (
+                                  <button 
+                                    onClick={() => balanceDraftHours(sem, 'clinicalHours')}
+                                    className="ml-1 bg-gray-200 hover:bg-gray-300 px-1.5 py-0.5 rounded text-[8px] transition-colors"
+                                  >
+                                    Balance
+                                  </button>
+                                )}
+                              </div>
+                              <button 
+                                onClick={() => applySubjectHours(sem)}
+                                disabled={Math.abs(diffTheory) > 0.1 || Math.abs(diffLab) > 0.1 || Math.abs(diffClinical) > 0.1}
+                                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${Math.abs(diffTheory) < 0.1 && Math.abs(diffLab) < 0.1 && Math.abs(diffClinical) < 0.1 ? 'bg-[#141414] text-white hover:bg-black shadow-md' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                              >
+                                Apply & Save Totals
+                              </button>
+                              <button 
+                                onClick={() => syncDraftWithGrid(sem)}
+                                className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
+                              >
+                                Sync with Grid
+                              </button>
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left">
+                            <thead>
+                              <tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                <th className="pb-3">Subject Name</th>
+                                <th className="pb-3 text-center">Theory (Sch / INC)</th>
+                                <th className="pb-3 text-center">Lab (Sch / INC)</th>
+                                <th className="pb-3 text-center">Clinical (Sch / INC)</th>
+                                <th className="pb-3 text-right">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {draftSubjects.map((sub: any) => {
+                                const currentAlloc = stats.finalStats.find((s: any) => s.subjectId === sub.id) || {};
+                                const incRef = (initialSubjectHours[sem] || []).find((s: any) => s.id === sub.id) || sub;
+                                return (
+                                  <tr key={sub.id} className="group hover:bg-white transition-colors">
+                                    <td className="py-4 text-xs font-bold text-gray-700">
+                                      {sub.name}
+                                      <div className="text-[8px] text-gray-400 font-medium uppercase tracking-tighter">ID: {sub.id}</div>
+                                    </td>
+                                    <td className="py-4 text-center">
+                                      <div className="flex flex-col items-center gap-1">
+                                        <input 
+                                          type="number"
+                                          value={sub.theoryHours}
+                                          onChange={(e) => handleUpdateDraftHours(sem, sub.id, 'theoryHours', parseInt(e.target.value) || 0)}
+                                          className="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-black text-gray-900 text-center focus:border-gray-900 outline-none shadow-sm"
+                                        />
+                                        <span className="text-[9px] font-bold text-gray-400">INC: {incRef.theoryHours}h</span>
+                                      </div>
+                                    </td>
+                                    <td className="py-4 text-center">
+                                      <div className="flex flex-col items-center gap-1">
+                                        <input 
+                                          type="number"
+                                          value={sub.labHours}
+                                          onChange={(e) => handleUpdateDraftHours(sem, sub.id, 'labHours', parseInt(e.target.value) || 0)}
+                                          className="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-black text-gray-900 text-center focus:border-gray-900 outline-none shadow-sm"
+                                        />
+                                        <span className="text-[9px] font-bold text-gray-400">INC: {incRef.labHours}h</span>
+                                      </div>
+                                    </td>
+                                    <td className="py-4 text-center">
+                                      <div className="flex flex-col items-center gap-1">
+                                        <input 
+                                          type="number"
+                                          value={sub.clinicalHours}
+                                          onChange={(e) => handleUpdateDraftHours(sem, sub.id, 'clinicalHours', parseInt(e.target.value) || 0)}
+                                          className="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-black text-gray-900 text-center focus:border-gray-900 outline-none shadow-sm"
+                                        />
+                                        <span className="text-[9px] font-bold text-gray-400">INC: {incRef.clinicalHours}h</span>
+                                      </div>
+                                    </td>
+                                    <td className="py-4 text-right">
+                                      <div className="flex items-center justify-end gap-2">
+                                        {sub.theoryHours === currentAlloc.scheduledTheory && sub.labHours === currentAlloc.scheduledLab && sub.clinicalHours === currentAlloc.scheduledClinical ? (
+                                          <span className="text-[8px] font-bold text-gray-900 uppercase">Balanced</span>
+                                        ) : (
+                                          <span className="text-[8px] font-bold text-gray-500 uppercase">Modified</span>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                            <tfoot className="border-t-2 border-gray-100 bg-gray-50/50">
+                              <tr className="font-black">
+                                <td className="py-4 px-2 text-[10px] uppercase tracking-widest text-gray-400">Total Scheduled</td>
+                                <td className="py-4 text-center">
+                                  <div className="flex flex-col items-center">
+                                    <span className={`text-xs ${Math.abs(diffTheory) < 0.1 ? 'text-gray-900' : 'text-red-600'}`}>
+                                      {sumDraftTheory} / {stats.totalTheory}h
+                                    </span>
+                                    {Math.abs(diffTheory) > 0.1 && (
+                                      <span className="text-[8px] text-red-500 uppercase">Mismatch: {diffTheory > 0 ? `+${diffTheory}` : diffTheory}h</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-4 text-center">
+                                  <div className="flex flex-col items-center">
+                                    <span className={`text-xs ${Math.abs(diffLab) < 0.1 ? 'text-gray-900' : 'text-red-600'}`}>
+                                      {sumDraftLab} / {stats.totalLab}h
+                                    </span>
+                                    {Math.abs(diffLab) > 0.1 && (
+                                      <span className="text-[8px] text-red-500 uppercase">Mismatch: {diffLab > 0 ? `+${diffLab}` : diffLab}h</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-4 text-center">
+                                  <div className="flex flex-col items-center">
+                                    <span className={`text-xs ${Math.abs(diffClinical) < 0.1 ? 'text-gray-900' : 'text-red-600'}`}>
+                                      {sumDraftClinical} / {stats.totalClinical}h
+                                    </span>
+                                    {Math.abs(diffClinical) > 0.1 && (
+                                      <span className="text-[8px] text-red-500 uppercase">Mismatch: {diffClinical > 0 ? `+${diffClinical}` : diffClinical}h</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-4 text-right pr-4">
+                                  {Math.abs(diffTheory) > 0.1 || Math.abs(diffLab) > 0.1 || Math.abs(diffClinical) > 0.1 ? (
+                                    <span className="text-[8px] font-bold text-red-500 uppercase animate-pulse">Please Correct</span>
+                                  ) : (
+                                    <span className="text-[8px] font-bold text-gray-900 uppercase">Perfect</span>
+                                  )}
+                                </td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                        
+                        { (Math.abs(diffTheory) > 0.1 || Math.abs(diffLab) > 0.1 || Math.abs(diffClinical) > 0.1) && (
+                          <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center gap-3 text-gray-700">
+                            <AlertCircle size={16} />
+                            <p className="text-[10px] font-bold uppercase tracking-wide">
+                              Equation not balanced: Please ensure the sum of subject hours matches the available pool (Remaining must be 0) before saving.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Save & Exit Button */}
+        <div className="flex justify-center items-center gap-4 pt-6 pb-12">
+          {undoStack.length > 0 && (
+            <button 
+              onClick={handleUndo}
+              className="bg-white text-gray-900 border-2 border-gray-900 px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-gray-100 transition-all flex items-center gap-2"
+            >
+              <Trash2 size={18} className="rotate-180" /> Undo Change
+            </button>
+          )}
+          <button 
+            onClick={handleSaveEditor}
+            className="bg-[#141414] text-white px-12 py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-black transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 flex items-center gap-3"
+          >
+            <CheckCircle2 size={20} />
+            Save & Exit Editor
+          </button>
+        </div>
+
+        {/* Exit Confirmation Modal */}
+        <AnimatePresence>
+          {showExitConfirm && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-6"
+              >
+                <div className="flex items-center gap-4 text-gray-900">
+                  <div className="p-3 bg-gray-100 rounded-2xl">
+                    <AlertCircle size={32} />
+                  </div>
+                  <h3 className="text-xl font-black uppercase tracking-tight">Unsaved Changes</h3>
+                </div>
+                <p className="text-gray-600 font-medium">You have unsaved changes in your master plan. Would you like to save them before exiting?</p>
+                <div className="flex flex-col gap-3">
+                  <button 
+                    onClick={() => {
+                      setCustomTemplates(draftTemplates);
+                      setIsEditingMasterPlan(false);
+                      setShowExitConfirm(false);
+                      setSelectedBlock(null);
+                    }}
+                    className="w-full bg-[#141414] text-white py-4 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-black transition-all"
+                  >
+                    Save and Exit
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setIsEditingMasterPlan(false);
+                      setShowExitConfirm(false);
+                      setSelectedBlock(null);
+                    }}
+                    className="w-full bg-gray-100 text-gray-600 py-4 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-gray-200 transition-all"
+                  >
+                    Discard Changes
+                  </button>
+                  <button 
+                    onClick={() => setShowExitConfirm(false)}
+                    className="w-full text-gray-400 font-bold uppercase tracking-widest text-[10px] py-2"
+                  >
+                    Go Back
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    );
+  };
 
   const renderMasterPlan = () => {
     const weeksArr = Array.from({ length: 26 }, (_, i) => i + 1);
@@ -904,78 +1788,6 @@ export default function App() {
         monthHeaders.push({ name: mName, weekCount: 1 });
       }
     }
-
-    const getWeekStats = (sIdx: number, wIdx: number) => {
-      const sem = semesters[sIdx];
-      
-      const wStart = new Date(startDate + 'T00:00:00');
-      wStart.setDate(wStart.getDate() + (wIdx * 7));
-      const wEnd = new Date(wStart);
-      wEnd.setDate(wEnd.getDate() + 6);
-
-      const schedule = schedules[sIdx];
-      if (!schedule) return { theory: 0, lab: 0, clinical: 0, ca: 0, exam: 0, orientation: 0, vacation: 0, workingDays: 0, dominantPhase: 'Theory Phase', weekHolidays: [] as string[] };
-
-      const stats = {
-        theory: 0, lab: 0, clinical: 0, ca: 0, exam: 0, orientation: 0, vacation: 0,
-        workingDays: 0, dominantPhase: 'Theory Phase', weekHolidays: [] as string[]
-      };
-
-      const phaseDays: Record<string, number> = {};
-
-      schedule.blocks.forEach(block => {
-        block.days.forEach(day => {
-          const dDate = new Date(day.date + 'T00:00:00');
-          if (dDate >= wStart && dDate <= wEnd) {
-            if (!day.isHoliday) {
-              stats.workingDays++;
-            } else if (day.holidayName && !['Sunday', 'Saturday', 'Theory Phase', 'Clinical Posting'].includes(day.holidayName)) {
-              if (!stats.weekHolidays.includes(day.holidayName)) {
-                stats.weekHolidays.push(day.holidayName);
-              }
-            }
-            const pName = day.holidayName || day.phaseName || 'Theory Phase';
-            if (pName !== 'Sunday' && pName !== 'Saturday') {
-              // Count vacation/holiday phases even if they are holidays
-              if (!day.isHoliday || pName.toLowerCase().includes('vacation') || pName.toLowerCase().includes('holi') || pName.toLowerCase().includes('diwali')) {
-                phaseDays[pName] = (phaseDays[pName] || 0) + 1;
-              }
-            }
-            day.slots.forEach(slot => {
-              const hrs = slot.durationMinutes / 60;
-              if (slot.type === SlotType.CLINICAL) stats.clinical += hrs;
-              else if (slot.type === SlotType.CA || slot.type === SlotType.CO_CURRICULAR) stats.ca += hrs;
-              else if (slot.type === SlotType.ORIENTATION) stats.orientation += hrs;
-              else if (slot.type === SlotType.LAB) stats.lab += hrs;
-              else if (slot.type === SlotType.THEORY) stats.theory += hrs;
-              else if (slot.type === SlotType.EXAM) stats.exam += hrs;
-              else if (slot.type === SlotType.HOLIDAY || slot.type === SlotType.PREP_LEAVE) stats.vacation += hrs;
-            });
-          }
-        });
-      });
-
-      let max = -1;
-      for (const [n, c] of Object.entries(phaseDays)) {
-        if (c > max) { max = c; stats.dominantPhase = n; }
-      }
-      return stats;
-    };
-
-    const getPhaseColor = (name: string) => {
-      const n = name.toLowerCase();
-      if (n === 'blank') return '#FFFFFF';
-      if (n.includes('orientation')) return '#A6A6A6'; // Grey
-      if (n.includes('co-curricular')) return '#FFC000'; // Orange
-      if (n.includes('mid term') || n.includes('sessional')) return '#FFFF00'; // Yellow
-      if (n.includes('clinical')) return '#00B0F0'; // Blue
-      if (n.includes('prep')) return '#C6E0B4'; // Light Green
-      if (n.includes('vacation') || n.includes('diwali') || n.includes('holi')) return '#FF0000'; // Red
-      if (n.includes('lab') || n.includes('skill') || n.includes('live class')) return '#92D050'; // Green
-      if (n.includes('theory')) return '#FF99CC'; // Pink
-      if (n.includes('exam')) return '#FF00FF'; // Magenta
-      return '#FF99CC';
-    };
 
     // Helper to get merged blocks for the grid
     const getMergedBlocks = (sIdx: number) => {
@@ -1047,80 +1859,6 @@ export default function App() {
       };
     };
 
-    const getSemesterStats = (sem: number) => {
-      const semSubjects = SEMESTER_DATABASE[sem].subjects;
-      const sIdx = semesters.indexOf(sem);
-      
-      let totalTheory = 0, totalLab = 0, totalClinical = 0, totalCA = 0, totalOrientation = 0, totalExam = 0, totalVacation = 0;
-      
-      for (let w = 0; w < 26; w++) {
-        const stats = getWeekStats(sIdx, w);
-        totalTheory += stats.theory;
-        totalLab += stats.lab;
-        totalClinical += stats.clinical;
-        totalCA += stats.ca;
-        totalOrientation += stats.orientation;
-        totalExam += stats.exam;
-        totalVacation += stats.vacation;
-      }
-
-      let finalStats;
-      if (schedules[sIdx]) {
-        finalStats = schedules[sIdx].finalStats;
-      } else {
-        const totalStipulatedTheory = semSubjects.reduce((sum, sub) => sum + sub.theoryHours, 0);
-        const totalStipulatedLab = semSubjects.reduce((sum, sub) => sum + sub.labHours, 0);
-        const totalStipulatedClinical = semSubjects.reduce((sum, sub) => sum + sub.clinicalHours, 0);
-
-        let remainingTheory = totalTheory;
-        let remainingLab = totalLab;
-        let remainingClinical = totalClinical;
-
-        finalStats = semSubjects.map((sub, index) => {
-          const isLast = index === semSubjects.length - 1;
-
-          let theoryAllocated = totalStipulatedTheory > 0 ? Math.round((sub.theoryHours / totalStipulatedTheory) * totalTheory) : 0;
-          if (isLast && totalStipulatedTheory > 0) theoryAllocated = remainingTheory;
-          remainingTheory -= theoryAllocated;
-
-          let labAllocated = totalStipulatedLab > 0 ? Math.round((sub.labHours / totalStipulatedLab) * totalLab) : 0;
-          if (isLast && totalStipulatedLab > 0) labAllocated = remainingLab;
-          remainingLab -= labAllocated;
-
-          let clinicalAllocated = totalStipulatedClinical > 0 ? Math.round((sub.clinicalHours / totalStipulatedClinical) * totalClinical) : 0;
-          if (isLast && totalStipulatedClinical > 0) clinicalAllocated = remainingClinical;
-          remainingClinical -= clinicalAllocated;
-
-          return {
-            subjectId: sub.id,
-            subjectName: sub.name,
-            totalTheory: sub.theoryHours,
-            totalLab: sub.labHours,
-            totalClinical: sub.clinicalHours,
-            remainingTheory: Math.max(0, sub.theoryHours - theoryAllocated),
-            remainingLab: Math.max(0, sub.labHours - labAllocated),
-            remainingClinical: Math.max(0, sub.clinicalHours - clinicalAllocated),
-            scheduledTheory: theoryAllocated,
-            scheduledLab: labAllocated,
-            scheduledClinical: clinicalAllocated,
-            scheduledCA: 0,
-            scheduledOrientation: 0
-          };
-        });
-      }
-
-      return {
-        finalStats,
-        totalCA,
-        totalOrientation,
-        totalExam,
-        totalVacation,
-        totalTheory,
-        totalLab,
-        totalClinical
-      };
-    };
-
     const getMasterPlanTitle = () => {
       if (masterPlanFilter === 'all') {
         return `Master Plan - B.Sc. Nursing ${semesterType.toUpperCase()} Semesters`;
@@ -1139,13 +1877,11 @@ export default function App() {
       >
         <div className="min-w-[1000px] bg-white p-4 md:p-8 shadow-2xl border border-gray-200 rounded-xl" id="master-plan-content">
           {/* Detailed Header */}
-          <div className="mb-8 flex flex-col items-center">
-            <div className="text-center space-y-1">
-              <h1 className="text-xl md:text-2xl font-bold uppercase tracking-tight">{collegeName}</h1>
-              <h2 className="text-lg md:text-xl font-bold text-gray-600">{campusName}</h2>
-              <h3 className="text-base md:text-lg font-black text-[#ED7D31] uppercase tracking-widest">{getMasterPlanTitle()}</h3>
-              <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Academic Session {new Date(startDate).getFullYear()} - {new Date(startDate).getFullYear() + 1}</p>
-            </div>
+          <div className="mb-10 flex flex-col items-center justify-center text-center w-full">
+            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-gray-900 mb-1">{collegeName}</h1>
+            <h2 className="text-lg md:text-xl font-bold text-gray-600 mb-4">{campusName}</h2>
+            <h3 className="text-lg md:text-xl font-black text-[#ED7D31] uppercase tracking-widest mb-2">{getMasterPlanTitle()}</h3>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Academic Session {new Date(startDate).getFullYear()} - {new Date(startDate).getFullYear() + 1}</p>
           </div>
 
           <div className="border-2 border-black overflow-hidden rounded-lg">
@@ -1244,120 +1980,57 @@ export default function App() {
                         return (
                           <td key={bIdx} colSpan={block.length} className="border border-black p-0 relative h-48 md:h-72 overflow-hidden align-middle">
                             <div className="flex flex-col h-full w-full">
-                              {isTheoryPhase ? (
-                                <>
-                                  {block.stats.theory > 0 && (
-                                    <div className="flex-1 flex flex-col items-center justify-center border-b border-black bg-[#FF99CC] p-1 overflow-hidden relative">
-                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>Theory Block</span>
-                                      <span className={`${subFontSize} font-bold text-center leading-tight`}>
-                                        ({renderMath(block.stats.theory, days)})
+                              {(() => {
+                                const stats = block.stats;
+                                const isSpecial = phaseName.includes('PREP') || phaseName.includes('UNIVERSITY EXAM') || phaseName.includes('VACATION') || phaseName.includes('HOLI') || phaseName.includes('DIWALI');
+                                
+                                if (isSpecial) {
+                                  return (
+                                    <div className="h-full flex flex-col items-center justify-center p-1 overflow-hidden relative" style={{ backgroundColor: getPhaseColor(block.phase) }}>
+                                      <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest whitespace-nowrap inline-block" style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}>
+                                        {phaseName}
                                       </span>
                                     </div>
-                                  )}
-                                  {block.stats.lab > 0 && (
-                                    <div className="flex-[0.6] flex flex-col items-center justify-center border-b border-black bg-[#92D050] p-1 overflow-hidden">
-                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>Lab/Skill Lab</span>
-                                      <span className={`${subFontSize} font-bold text-center leading-tight`}>
-                                        ({renderMath(block.stats.lab, days)})
+                                  );
+                                }
+
+                                const segments = [
+                                  { key: 'theory', label: 'Theory Block', color: '#FF99CC' },
+                                  { key: 'lab', label: 'Lab/Skill Lab', color: '#92D050' },
+                                  { key: 'clinical', label: 'Clinical Block', color: '#00B0F0' },
+                                  { key: 'ca', label: 'CCA', color: '#FFC000' },
+                                  { key: 'exam', label: 'IA/Exam', color: '#FFFF00' },
+                                  { key: 'orientation', label: 'Orientation', color: '#A6A6A6' }
+                                ].filter(s => stats[s.key] > 0);
+
+                                if (segments.length === 0) {
+                                  const isUnscheduled = block.phase === 'Unscheduled';
+                                  return (
+                                    <div className="h-full flex flex-col items-center justify-center p-1 overflow-hidden relative" style={{ backgroundColor: getPhaseColor(block.phase) }}>
+                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight ${isUnscheduled ? 'text-gray-200' : ''}`}>
+                                        {isUnscheduled ? 'Empty Slot' : phaseName}
                                       </span>
                                     </div>
-                                  )}
-                                  {block.stats.ca > 0 && (
-                                    <div className="flex-[0.4] flex flex-col items-center justify-center bg-[#FFC000] p-1 overflow-hidden">
-                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>CCA</span>
-                                      <span className={`${subFontSize} font-bold text-center leading-tight`}>
-                                        ({renderMath(block.stats.ca, days)})
-                                      </span>
-                                    </div>
-                                  )}
-                                </>
-                              ) : isClinicalPhase ? (
-                                <div className="h-full flex flex-col items-center justify-center bg-[#00B0F0] p-1 overflow-hidden relative">
-                                  <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>Clinical Block</span>
-                                  <span className={`${subFontSize} font-bold text-center leading-tight`}>
-                                    ({renderMath(block.stats.clinical, days)})
-                                  </span>
-                                </div>
-                              ) : isIAPhase ? (
-                                <>
-                                  {block.stats.exam > 0 && (
-                                    <div className="flex-1 flex flex-col items-center justify-center border-b border-black bg-[#FFFF00] p-1 overflow-hidden relative">
-                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>
-                                        {block.phase === 'I IA' || block.phase === 'I Mid Term' ? 'I IA' : 'II IA'}
-                                      </span>
-                                      <span className={`${subFontSize} font-bold text-center leading-tight`}>
-                                        ({renderMath(block.stats.exam, days)})
-                                      </span>
-                                    </div>
-                                  )}
-                                  {block.stats.lab > 0 && (
-                                    <div className="flex-1 flex flex-col items-center justify-center border-b border-black bg-[#92D050] p-1 overflow-hidden">
-                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>Lab Hours</span>
-                                      <span className={`${subFontSize} font-bold text-center leading-tight`}>
-                                        ({renderMath(block.stats.lab, days)})
-                                      </span>
-                                    </div>
-                                  )}
-                                  {block.stats.ca > 0 && (
-                                    <div className="flex-1 flex flex-col items-center justify-center bg-[#FFC000] p-1 overflow-hidden">
-                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>CCA</span>
-                                      <span className={`${subFontSize} font-bold text-center leading-tight`}>
-                                        ({renderMath(block.stats.ca, days)})
-                                      </span>
-                                    </div>
-                                  )}
-                                </>
-                              ) : isOrientationPhase ? (
-                                <>
-                                  {block.stats.orientation > 0 && (
-                                    <div className="flex-1 flex flex-col items-center justify-center border-b border-black bg-[#A6A6A6] p-1 overflow-hidden relative">
-                                      <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest whitespace-nowrap inline-block" style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}>Orientation</span>
-                                    </div>
-                                  )}
-                                  {block.stats.ca > 0 && (
-                                    <div className="flex-1 flex flex-col items-center justify-center bg-[#FFC000] p-1 overflow-hidden">
-                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>CCA</span>
-                                      <span className={`${subFontSize} font-bold text-center leading-tight`}>
-                                        ({renderMath(block.stats.ca, days)})
-                                      </span>
-                                    </div>
-                                  )}
-                                </>
-                              ) : block.phase === 'Lab/CA' ? (
-                                <>
-                                  {block.stats.lab > 0 && (
-                                    <div className="flex-1 flex flex-col items-center justify-center border-b border-black bg-[#92D050] p-1 overflow-hidden relative">
-                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>Lab Hours</span>
-                                      <span className={`${subFontSize} font-bold text-center leading-tight`}>
-                                        ({renderMath(block.stats.lab, days)})
-                                      </span>
-                                    </div>
-                                  )}
-                                  {block.stats.ca > 0 && (
-                                    <div className="flex-1 flex flex-col items-center justify-center bg-[#FFC000] p-1 overflow-hidden">
-                                      <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>CCA</span>
-                                      <span className={`${subFontSize} font-bold text-center leading-tight`}>
-                                        ({renderMath(block.stats.ca, days)})
-                                      </span>
-                                    </div>
-                                  )}
-                                </>
-                              ) : (
-                                <div className="h-full flex flex-col items-center justify-center p-1 overflow-hidden relative" style={{ backgroundColor: getPhaseColor(block.phase) }}>
-                                  {(phaseName.includes('PREP') || phaseName.includes('UNIVERSITY EXAM') || phaseName.includes('VACATION')) ? (
-                                    <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest whitespace-nowrap inline-block" style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}>
-                                      {phaseName}
-                                    </span>
-                                  ) : (
-                                    <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>{phaseName}</span>
-                                  )}
-                                  {!(phaseName.includes('PREP') || phaseName.includes('EXAM') || phaseName.includes('VACATION')) && (
-                                    <span className={`${subFontSize} font-bold text-center leading-tight`}>
-                                      ({renderMath(totalHrs, days)})
-                                    </span>
-                                  )}
-                                </div>
-                              )}
+                                  );
+                                }
+
+                                return (
+                                  <>
+                                    {segments.map((seg, idx) => (
+                                      <div 
+                                        key={seg.key} 
+                                        className={`flex-1 flex flex-col items-center justify-center ${idx < segments.length - 1 ? 'border-b border-black' : ''} p-1 overflow-hidden relative`}
+                                        style={{ backgroundColor: seg.color }}
+                                      >
+                                        <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>{seg.label}</span>
+                                        <span className={`${subFontSize} font-bold text-center leading-tight`}>
+                                          ({renderMath(stats[seg.key], days)})
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </>
+                                );
+                              })()}
                             </div>
                           </td>
                         );
@@ -1431,7 +2104,7 @@ export default function App() {
                             <td className="border border-black p-1 md:p-1.5 text-center align-middle">-</td>
                             <td className="border border-black p-1 md:p-1.5 text-center align-middle" colSpan={3}>{stats.totalCA + stats.totalOrientation} hrs</td>
                           </tr>
-                          <tr className="bg-blue-50 font-bold">
+                          <tr className="bg-gray-50 font-bold">
                             <td className="border border-black border-t-0 p-1 md:p-1.5 bg-gray-50"></td>
                             <td className="border border-black p-1 md:p-1.5 text-center uppercase align-middle">TOTAL</td>
                             {(() => {
@@ -1586,16 +2259,32 @@ export default function App() {
           setMasterPlanFilter={step === 2 ? setMasterPlanFilter : undefined}
           handleExportPDF={step === 2 ? handleExportPDF : undefined}
           semesters={step === 2 ? semesters : undefined}
+          isEditingMasterPlan={isEditingMasterPlan}
+          onEnterEditMode={() => {
+            const newTemplates = { ...customTemplates };
+            const filteredSems = masterPlanFilter === 'all' 
+              ? semesters 
+              : [parseInt(masterPlanFilter)];
+            
+            filteredSems.forEach(sem => {
+              if (!newTemplates[sem]) {
+                newTemplates[sem] = getDefaultTemplate(sem, startDate, holidays, midTerm1Week, midTerm2Week, semesterData[sem]);
+              }
+            });
+            setDraftTemplates(newTemplates);
+            setUndoStack([]);
+            setIsEditingMasterPlan(true);
+          }}
         />
-        <main className="container mx-auto py-8">
+        <main className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <AnimatePresence mode="wait">
             {step === 1 && (isManagingSubjects ? renderSubjectManagement() : renderSetup())}
-            {step === 2 && renderMasterPlan()}
+            {step === 2 && (isEditingMasterPlan ? renderMasterPlanEditor() : renderMasterPlan())}
           </AnimatePresence>
         </main>
 
       <footer className="py-8 text-center text-gray-400 text-xs font-bold uppercase tracking-[0.2em] opacity-50">
-        &copy; 2026 Graphic Era Hill University • Academic Planning System
+        &copy; 2026 Academic Planning System
       </footer>
 
       <style dangerouslySetInnerHTML={{ __html: `
