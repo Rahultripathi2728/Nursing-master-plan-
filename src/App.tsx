@@ -48,27 +48,12 @@ import { exportToPDF } from './utils/pdfExport';
 
 export default function App() {
   const [step, setStep] = useState(1);
-  const [semesterType, setSemesterType] = useState<'odd' | 'even'>(() => {
-    const saved = localStorage.getItem('semesterType');
-    return (saved as 'odd' | 'even') || 'odd';
-  });
-  const [startDate, setStartDate] = useState(() => {
-    const saved = localStorage.getItem('startDate') || '2025-08-04';
-    return saved;
-  });
-  const [midTerm1Week, setMidTerm1Week] = useState<number>(() => {
-    const saved = localStorage.getItem('midTerm1Week');
-    return saved ? parseInt(saved) : 10;
-  });
-  const [midTerm2Week, setMidTerm2Week] = useState<number>(() => {
-    const saved = localStorage.getItem('midTerm2Week');
-    return saved ? parseInt(saved) : 19;
-  });
+  const [semesterType, setSemesterType] = useState<'odd' | 'even'>('odd');
+  const [startDate, setStartDate] = useState('2025-08-04');
+  const [midTerm1Week, setMidTerm1Week] = useState<number>(10);
+  const [midTerm2Week, setMidTerm2Week] = useState<number>(19);
   const [isCalculated, setIsCalculated] = useState(false);
-  const [semesterData, setSemesterData] = useState<Record<number, SemesterData>>(() => {
-    const saved = localStorage.getItem('semesterData');
-    return saved ? JSON.parse(saved) : SEMESTER_DATABASE;
-  });
+  const [semesterData, setSemesterData] = useState<Record<number, SemesterData>>(SEMESTER_DATABASE);
   const [isManagingSubjects, setIsManagingSubjects] = useState(false);
   const [isEditingMasterPlan, setIsEditingMasterPlan] = useState(false);
   const [showSubjectDistribution, setShowSubjectDistribution] = useState(false);
@@ -78,10 +63,7 @@ export default function App() {
   const [draftTemplates, setDraftTemplates] = useState<Record<number, any[]>>({});
   const [undoStack, setUndoStack] = useState<any[]>([]);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const [customTemplates, setCustomTemplates] = useState<Record<number, any[]>>(() => {
-    const saved = localStorage.getItem('customTemplates');
-    return saved ? JSON.parse(saved) : {};
-  });
+  const [customTemplates, setCustomTemplates] = useState<Record<number, any[]>>({});
   const [selectedBlock, setSelectedBlock] = useState<{ semester: number, start: number, end: number } | null>(null);
 
   const handleUpdateSubjectHours = (sem: number, subjectId: string, field: 'theoryHours' | 'labHours' | 'clinicalHours', value: number) => {
@@ -187,34 +169,11 @@ export default function App() {
     alert(`Subject hours for Semester ${sem} updated successfully.`);
   };
 
-  const [collegeName, setCollegeName] = useState(() => {
-    return localStorage.getItem('collegeName') || 'College of Nursing';
-  });
-  const [campusName, setCampusName] = useState(() => {
-    return localStorage.getItem('campusName') || 'University Campus';
-  });
-
-  useEffect(() => {
-    localStorage.setItem('collegeName', collegeName);
-  }, [collegeName]);
-
-  useEffect(() => {
-    localStorage.setItem('campusName', campusName);
-  }, [campusName]);
-
-  useEffect(() => {
-    localStorage.setItem('customTemplates', JSON.stringify(customTemplates));
-  }, [customTemplates]);
-
-  useEffect(() => {
-    localStorage.setItem('semesterData', JSON.stringify(semesterData));
-  }, [semesterData]);
+  const [collegeName, setCollegeName] = useState('College of Nursing');
+  const [campusName, setCampusName] = useState('University Campus');
 
   const [holidays, setHolidays] = useState<Holiday[]>(() => {
-    const saved = localStorage.getItem('holidays');
-    if (saved) return JSON.parse(saved);
-    
-    const start = localStorage.getItem('startDate') || '2025-08-01';
+    const start = '2025-08-04';
     const d = new Date(start + 'T00:00:00');
     d.setDate(d.getDate() + (26 * 7) - 1);
     const end = d.toISOString().split('T')[0];
@@ -261,15 +220,6 @@ export default function App() {
       return newHolidays.sort((a, b) => a.date.localeCompare(b.date));
     });
   }, [startDate, endDate]);
-
-  // Save to localStorage whenever these change
-  useEffect(() => {
-    localStorage.setItem('semesterType', semesterType);
-    localStorage.setItem('startDate', startDate);
-    localStorage.setItem('midTerm1Week', midTerm1Week.toString());
-    localStorage.setItem('midTerm2Week', midTerm2Week.toString());
-    localStorage.setItem('holidays', JSON.stringify(holidays));
-  }, [semesterType, startDate, midTerm1Week, midTerm2Week, holidays]);
 
   // Derived Data
   const semesters = useMemo(() => {
@@ -522,17 +472,17 @@ export default function App() {
         animate={{ opacity: 1, x: 0 }}
         className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8"
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center gap-6">
+          <button 
+            onClick={() => setIsManagingSubjects(false)}
+            className="flex items-center gap-2 text-gray-500 hover:text-gray-900 font-bold transition-all bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg"
+          >
+            <ChevronLeft size={20} /> Back
+          </button>
           <div>
             <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">Manage Subjects</h2>
             <p className="text-gray-500 font-medium mt-1">Customize hours and subjects for each semester.</p>
           </div>
-          <button 
-            onClick={() => setIsManagingSubjects(false)}
-            className="flex items-center gap-2 text-gray-500 hover:text-gray-900 font-bold transition-all"
-          >
-            <ChevronLeft size={20} /> Back to Setup
-          </button>
         </div>
 
         <div className="grid grid-cols-1 gap-8">
@@ -1506,6 +1456,19 @@ export default function App() {
                     const sumDraftLab = draftSubjects.reduce((s, sub) => s + sub.labHours, 0);
                     const sumDraftClinical = draftSubjects.reduce((s, sub) => s + sub.clinicalHours, 0);
 
+                    const sumIncTheory = draftSubjects.reduce((s, sub) => {
+                      const incRef = (initialSubjectHours[sem] || []).find((s: any) => s.id === sub.id) || sub;
+                      return s + incRef.theoryHours;
+                    }, 0);
+                    const sumIncLab = draftSubjects.reduce((s, sub) => {
+                      const incRef = (initialSubjectHours[sem] || []).find((s: any) => s.id === sub.id) || sub;
+                      return s + incRef.labHours;
+                    }, 0);
+                    const sumIncClinical = draftSubjects.reduce((s, sub) => {
+                      const incRef = (initialSubjectHours[sem] || []).find((s: any) => s.id === sub.id) || sub;
+                      return s + incRef.clinicalHours;
+                    }, 0);
+
                     const diffTheory = stats.totalTheory - sumDraftTheory;
                     const diffLab = stats.totalLab - sumDraftLab;
                     const diffClinical = stats.totalClinical - sumDraftClinical;
@@ -1640,6 +1603,7 @@ export default function App() {
                                     <span className={`text-xs ${Math.abs(diffTheory) < 0.1 ? 'text-gray-900' : 'text-red-600'}`}>
                                       {sumDraftTheory} / {stats.totalTheory}h
                                     </span>
+                                    <span className="text-[9px] font-bold text-gray-400 mt-1">INC: {sumIncTheory}h</span>
                                     {Math.abs(diffTheory) > 0.1 && (
                                       <span className="text-[8px] text-red-500 uppercase">Mismatch: {diffTheory > 0 ? `+${diffTheory}` : diffTheory}h</span>
                                     )}
@@ -1650,6 +1614,7 @@ export default function App() {
                                     <span className={`text-xs ${Math.abs(diffLab) < 0.1 ? 'text-gray-900' : 'text-red-600'}`}>
                                       {sumDraftLab} / {stats.totalLab}h
                                     </span>
+                                    <span className="text-[9px] font-bold text-gray-400 mt-1">INC: {sumIncLab}h</span>
                                     {Math.abs(diffLab) > 0.1 && (
                                       <span className="text-[8px] text-red-500 uppercase">Mismatch: {diffLab > 0 ? `+${diffLab}` : diffLab}h</span>
                                     )}
@@ -1660,6 +1625,7 @@ export default function App() {
                                     <span className={`text-xs ${Math.abs(diffClinical) < 0.1 ? 'text-gray-900' : 'text-red-600'}`}>
                                       {sumDraftClinical} / {stats.totalClinical}h
                                     </span>
+                                    <span className="text-[9px] font-bold text-gray-400 mt-1">INC: {sumIncClinical}h</span>
                                     {Math.abs(diffClinical) > 0.1 && (
                                       <span className="text-[8px] text-red-500 uppercase">Mismatch: {diffClinical > 0 ? `+${diffClinical}` : diffClinical}h</span>
                                     )}
@@ -1982,7 +1948,7 @@ export default function App() {
                             <div className="flex flex-col h-full w-full">
                               {(() => {
                                 const stats = block.stats;
-                                const isSpecial = phaseName.includes('PREP') || phaseName.includes('UNIVERSITY EXAM') || phaseName.includes('VACATION') || phaseName.includes('HOLI') || phaseName.includes('DIWALI');
+                                const isSpecial = phaseName.includes('PREP') || phaseName.includes('UNIVERSITY EXAM') || phaseName.includes('VACATION') || phaseName.includes('HOLI') || phaseName.includes('DIWALI') || phaseName.includes('ORIENTATION');
                                 
                                 if (isSpecial) {
                                   return (
@@ -1996,10 +1962,10 @@ export default function App() {
 
                                 const segments = [
                                   { key: 'theory', label: 'Theory Block', color: '#FF99CC' },
+                                  { key: 'exam', label: 'IA/Exam', color: '#FFFF00' },
                                   { key: 'lab', label: 'Lab/Skill Lab', color: '#92D050' },
                                   { key: 'clinical', label: 'Clinical Block', color: '#00B0F0' },
                                   { key: 'ca', label: 'CCA', color: '#FFC000' },
-                                  { key: 'exam', label: 'IA/Exam', color: '#FFFF00' },
                                   { key: 'orientation', label: 'Orientation', color: '#A6A6A6' }
                                 ].filter(s => stats[s.key] > 0);
 
@@ -2014,20 +1980,25 @@ export default function App() {
                                   );
                                 }
 
+                                const totalSegmentHours = segments.reduce((sum, seg) => sum + stats[seg.key], 0);
+
                                 return (
                                   <>
-                                    {segments.map((seg, idx) => (
-                                      <div 
-                                        key={seg.key} 
-                                        className={`flex-1 flex flex-col items-center justify-center ${idx < segments.length - 1 ? 'border-b border-black' : ''} p-1 overflow-hidden relative`}
-                                        style={{ backgroundColor: seg.color }}
-                                      >
-                                        <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>{seg.label}</span>
-                                        <span className={`${subFontSize} font-bold text-center leading-tight`}>
-                                          ({renderMath(stats[seg.key], days)})
-                                        </span>
-                                      </div>
-                                    ))}
+                                    {segments.map((seg, idx) => {
+                                      const heightPercent = totalSegmentHours > 0 ? (stats[seg.key] / totalSegmentHours) * 100 : 100 / segments.length;
+                                      return (
+                                        <div 
+                                          key={seg.key} 
+                                          className={`flex flex-col items-center justify-center ${idx < segments.length - 1 ? 'border-b border-black' : ''} p-1 overflow-hidden relative`}
+                                          style={{ backgroundColor: seg.color, height: `${heightPercent}%` }}
+                                        >
+                                          <span className={`${fontSize} font-bold uppercase text-center leading-tight`}>{seg.label}</span>
+                                          <span className={`${subFontSize} font-bold text-center leading-tight`}>
+                                            ({renderMath(stats[seg.key], days)})
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
                                   </>
                                 );
                               })()}

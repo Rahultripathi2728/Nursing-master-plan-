@@ -59,18 +59,18 @@
     ]
   },
   {
-    "week": "20",
+    "week": "20-23",
+    "phase": "Clinical Posting",
+    "activities": [
+      { "type": "Clinical", "hoursPerDay": 8, "totalDays": 24, "totalHours": 192 }
+    ]
+  },
+  {
+    "week": "24",
     "phase": "Theory Block",
     "activities": [
       { "type": "Theory", "hoursPerDay": 6, "totalDays": 5, "totalHours": 30 },
       { "type": "Lab", "hoursPerDay": 2, "totalDays": 5, "totalHours": 10 }
-    ]
-  },
-  {
-    "week": "21-24",
-    "phase": "Clinical Posting",
-    "activities": [
-      { "type": "Clinical", "hoursPerDay": 8, "totalDays": 24, "totalHours": 192 }
     ]
   },
   {

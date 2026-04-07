@@ -5,6 +5,7 @@ export const getPhaseColor = (name: string) => {
   if (n === 'blank' || n === 'unscheduled') return '#FFFFFF';
   if (n.includes('orientation')) return '#A6A6A6';
   if (n.includes('co-curricular')) return '#FFC000';
+  if (n.includes('university')) return '#FF00FF';
   if (n.includes('mid term') || n.includes('sessional') || n.includes('exam') || n.includes('ia')) return '#FFFF00';
   if (n.includes('clinical')) return '#00B0F0';
   if (n.includes('prep')) return '#C6E0B4';

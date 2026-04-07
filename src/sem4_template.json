@@ -1,15 +1,6 @@
 [
   {
-    "week": "1-4",
-    "phase": "Theory Block",
-    "activities": [
-      { "type": "Theory", "hoursPerDay": 6 },
-      { "type": "Lab", "hoursPerDay": 1 },
-      { "type": "Co-Curricular", "hoursPerDay": 1 }
-    ]
-  },
-  {
-    "week": "5-9",
+    "week": "1-9",
     "phase": "Theory Block",
     "activities": [
       { "type": "Theory", "hoursPerDay": 7 },
@@ -25,7 +16,7 @@
     ]
   },
   {
-    "week": "11-12",
+    "week": "11",
     "phase": "Theory Block",
     "activities": [
       { "type": "Theory", "hoursPerDay": 7 },
@@ -33,7 +24,7 @@
     ]
   },
   {
-    "week": "13-16",
+    "week": "12-16",
     "phase": "Clinical Block",
     "activities": [
       { "type": "Clinical", "hoursPerDay": 8 }
@@ -62,10 +53,18 @@
     ]
   },
   {
-    "week": "21-24",
+    "week": "21-23",
     "phase": "Clinical Block",
     "activities": [
       { "type": "Clinical", "hoursPerDay": 8 }
+    ]
+  },
+  {
+    "week": "24",
+    "phase": "Theory Block",
+    "activities": [
+      { "type": "Theory", "hoursPerDay": 7 },
+      { "type": "Co-Curricular", "hoursPerDay": 1 }
     ]
   },
   {

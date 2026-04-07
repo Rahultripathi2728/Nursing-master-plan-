@@ -24,20 +24,11 @@
     ]
   },
   {
-    "week": "11-13",
+    "week": "11-16",
     "phase": "Theory Block",
     "activities": [
-      { "type": "Theory", "hoursPerDay": 6, "totalDays": 15, "totalHours": 90 },
-      { "type": "Lab", "hoursPerDay": 1, "totalDays": 15, "totalHours": 15 },
-      { "type": "CA", "hoursPerDay": 1, "totalDays": 15, "totalHours": 15 }
-    ]
-  },
-  {
-    "week": "14-16",
-    "phase": "Theory Block",
-    "activities": [
-      { "type": "Theory", "hoursPerDay": 7, "totalDays": 15, "totalHours": 105 },
-      { "type": "Lab", "hoursPerDay": 1, "totalDays": 15, "totalHours": 15 }
+      { "type": "Theory", "hoursPerDay": 7, "totalDays": 30, "totalHours": 210 },
+      { "type": "Lab", "hoursPerDay": 1, "totalDays": 30, "totalHours": 30 }
     ]
   },
   {
@@ -64,18 +55,18 @@
     ]
   },
   {
-    "week": "20",
-    "phase": "Theory Block",
-    "activities": [
-      { "type": "Theory", "hoursPerDay": 7, "totalDays": 5, "totalHours": 35 },
-      { "type": "Co-Curricular", "hoursPerDay": 1, "totalDays": 5, "totalHours": 5 }
-    ]
-  },
-  {
-    "week": "21-24",
+    "week": "20-23",
     "phase": "Clinical Block",
     "activities": [
       { "type": "Clinical", "hoursPerDay": 8, "totalDays": 24, "totalHours": 192 }
+    ]
+  },
+  {
+    "week": "24",
+    "phase": "Theory Block",
+    "activities": [
+      { "type": "Theory", "hoursPerDay": 7, "totalDays": 5, "totalHours": 35 },
+      { "type": "Lab", "hoursPerDay": 1, "totalDays": 5, "totalHours": 5 }
     ]
   },
   {
