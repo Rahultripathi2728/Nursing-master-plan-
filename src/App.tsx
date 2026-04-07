@@ -1182,11 +1182,15 @@ export default function App() {
                         };
                         const isFixed = isFixedPhase(block.phase);
                         const isUnscheduled = block.phase === 'Unscheduled';
+                        const isOrientation = block.phase.toUpperCase().includes('ORIENTATION');
+                        const blockLength = block.end - block.start + 1;
+                        const fontSize = blockLength === 1 ? 'text-[5px] md:text-[6px]' : blockLength === 2 ? 'text-[6px] md:text-[8px]' : 'text-[7px] md:text-[9px]';
+                        const subFontSize = blockLength === 1 ? 'text-[4px] md:text-[5px]' : blockLength === 2 ? 'text-[5px] md:text-[7px]' : 'text-[6px] md:text-[8px]';
 
                         return (
                           <td 
                             key={bIdx} 
-                            colSpan={block.end - block.start + 1}
+                            colSpan={blockLength}
                             onClick={() => {
                               if (!isFixed) {
                                 setSelectedBlock({ semester: sem, start: block.start, end: block.end });
@@ -1204,9 +1208,9 @@ export default function App() {
                               </>
                             )}
                             <div className="flex flex-col h-full w-full">
-                              {isFixed || isUnscheduled ? (
-                                <div className="h-full flex flex-col items-center justify-center p-1 overflow-hidden relative" style={{ backgroundColor: isFixed ? '#f3f4f6' : '#FFFFFF' }}>
-                                  <span className={`text-[8px] md:text-[10px] font-bold uppercase tracking-widest whitespace-nowrap inline-block ${isUnscheduled ? 'text-gray-200' : 'text-gray-500'}`} style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}>
+                              {isFixed || isUnscheduled || isOrientation ? (
+                                <div className="h-full flex flex-col items-center justify-center p-1 overflow-hidden relative" style={{ backgroundColor: isFixed ? '#f3f4f6' : (isOrientation ? getPhaseColor(block.phase) : '#FFFFFF') }}>
+                                  <span className={`text-[8px] md:text-[10px] font-bold uppercase tracking-widest whitespace-nowrap inline-block ${isUnscheduled ? 'text-gray-200' : (isOrientation ? 'text-black' : 'text-gray-500')}`} style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}>
                                     {isUnscheduled ? 'Empty Slot' : block.phase.toUpperCase()}
                                   </span>
                                 </div>
@@ -1221,7 +1225,7 @@ export default function App() {
                                         height: `${(act.hoursPerDay / 8) * 100}%` 
                                       }}
                                     >
-                                      <span className="text-[7px] md:text-[9px] font-black uppercase text-center leading-tight px-1">
+                                      <span className={`${fontSize} font-black uppercase text-center leading-tight px-1`}>
                                         {act.type === SlotType.THEORY ? 'Theory Block' : 
                                          act.type === SlotType.LAB ? 'Lab/Skill Lab' :
                                          act.type === SlotType.CLINICAL ? 'Clinical Block' :
@@ -1229,7 +1233,7 @@ export default function App() {
                                          act.type === SlotType.EXAM ? 'IA/Exam' :
                                          act.type === SlotType.ORIENTATION ? 'Orientation' : act.type}
                                       </span>
-                                      <span className="text-[6px] md:text-[8px] font-bold text-center leading-tight">
+                                      <span className={`${subFontSize} font-bold text-center leading-tight`}>
                                         ({act.hoursPerDay}h/d)
                                       </span>
                                     </div>
